@@ -1,0 +1,164 @@
+// Daftar — custody & collection manager
+// Prisma 7 + SQLite (driver adapter: better-sqlite3)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------- settings
+
+model Setting {
+  id             Int       @id
+  shopName       String
+  pinHash        String
+  currency       String    @default("EGP")
+  sessionVersion Int       @default(1)
+  pinChangedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------------- custodies
+
+model Custody {
+  id                  String        @id @default(cuid())
+  name                String        @unique
+  phone               String?
+  note                String?
+  openingBalanceCents Int           @default(0)
+  isActive            Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  items     CustodyItem[]
+  customers Customer[]
+  charges   Charge[]
+  payments  Payment[]
+
+  @@index([isActive])
+}
+
+enum CustodyItemType {
+  DELIVERY
+  RETURN
+}
+
+model CustodyItem {
+  id             String          @id @default(cuid())
+  custodyId      String
+  custody        Custody         @relation(fields: [custodyId], references: [id], onDelete: Cascade)
+  type           CustodyItemType
+  name           String
+  unit           String?
+  quantity       Int
+  unitPriceCents Int
+  note           String?
+  occurredOn     String
+  productId      String?
+  product        Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  warehouseIn    StockMovement?
+  createdAt      DateTime        @default(now())
+
+  @@index([custodyId, occurredOn])
+  @@index([name])
+}
+
+// ---------------------------------------------------------------- customers
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  country   String?
+  custodyId String?
+  custody   Custody? @relation(fields: [custodyId], references: [id], onDelete: Cascade)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  charges  Charge[]
+  payments Payment[]
+
+  @@index([custodyId])
+  @@index([country])
+}
+
+model Charge {
+  id          String    @id @default(cuid())
+  custodyId   String?
+  custody     Custody?  @relation(fields: [custodyId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  amountCents Int
+  occurredOn  String
+  note        String?
+  createdAt   DateTime  @default(now())
+
+  @@index([occurredOn])
+  @@index([custodyId])
+  @@index([customerId])
+}
+
+model Payment {
+  id          String    @id @default(cuid())
+  custodyId   String?
+  custody     Custody?  @relation(fields: [custodyId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  amountCents Int
+  occurredOn  String
+  note        String?
+  createdAt   DateTime  @default(now())
+
+  @@index([occurredOn])
+  @@index([custodyId])
+  @@index([customerId])
+}
+
+// ---------------------------------------------------------------- warehouse
+
+model Product {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  unit              String?
+  costPriceCents    Int      @default(0)
+  salePriceCents    Int?
+  lowStockThreshold Int      @default(0)
+  note              String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  movements     StockMovement[]
+  custodyReturn CustodyItem[]
+
+  @@index([isActive])
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUST
+}
+
+model StockMovement {
+  id             String            @id @default(cuid())
+  productId      String
+  product        Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type           StockMovementType
+  quantity       Int
+  unitPriceCents Int?
+  occurredOn     String
+  note           String?
+  custodyItemId  String?           @unique
+  custodyItem    CustodyItem?      @relation(fields: [custodyItemId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+
+  @@index([productId, occurredOn])
+  @@index([occurredOn])
+}
