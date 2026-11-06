@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-cairo), "Segoe UI", Tahoma, sans-serif;
+
+  --color-paper: #f7f3ea;
+  --color-surface: #fffdf8;
+  --color-surface-muted: #f1ebdf;
+  --color-ink: #1b2420;
+  --color-muted: #6c756f;
+  --color-line: #e3dccb;
+
+  --color-brand: #17553d;
+  --color-brand-dark: #0d3b2a;
+  --color-brand-soft: #e4efe8;
+
+  --color-gold: #b9852f;
+  --color-gold-soft: #f7ecd7;
+
+  --color-danger: #b4433a;
+  --color-danger-soft: #fbe9e7;
+  --color-success: #2f7d5a;
+  --color-success-soft: #e4f2ea;
+  --color-info: #3f6d8e;
+  --color-info-soft: #e7eff5;
+
+  --shadow-card: 0 1px 2px rgb(27 36 32 / 0.04),
+    0 12px 32px -24px rgb(27 36 32 / 0.35);
+  --shadow-lift: 0 2px 4px rgb(27 36 32 / 0.05),
+    0 22px 48px -28px rgb(27 36 32 / 0.45);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-paper);
+    background-image:
+      radial-gradient(circle at 12% -5%, rgb(185 133 47 / 0.1), transparent 38%),
+      radial-gradient(circle at 90% 0%, rgb(23 85 61 / 0.08), transparent 34%);
+    background-attachment: fixed;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-soft);
+    color: var(--color-brand-dark);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  input,
+  select,
+  textarea {
+    color-scheme: light;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+}
