@@ -1,0 +1,79 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# =====================================================
+# Project-specific Git ignore rules
+# =====================================================
+
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Build output
+/.next/
+/out/
+/build/
+/dist/
+
+# Testing
+/coverage/
+/.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Deployment / hosting
+.vercel/
+*.pem
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Local databases and data stores
+/prisma/*.db
+/prisma/*.db-journal
+/prisma/*.db-shm
+/prisma/*.db-wal
+/prisma/backups/
+/prisma/*.sqlite
+/prisma/*.sqlite-journal
+
+# Generated files
+/generated/
+
+# Temporary files
+/tmp/
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Optional: ignore local backup/restore artifacts
+/backups/
+/restore/
