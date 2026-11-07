@@ -9,8 +9,6 @@ import {
 import os from "node:os";
 import path from "node:path";
 
-import Database from "better-sqlite3";
-
 import { getAuthenticatedSetting } from "@/lib/auth/dal";
 import { destroySession } from "@/lib/auth/session";
 import { backupsDirectory, databaseFilePath } from "@/lib/backup/paths";
@@ -63,20 +61,25 @@ async function pruneSafetyCopies(directory: string, keep: number) {
     .reverse();
 
   await Promise.all(
-    safetyCopies
-      .slice(keep)
-      .map((name) => rm(path.join(directory, name), { force: true })),
+    safetyCopies.slice(keep).map((name) => rm(path.join(directory, name), { force: true })),
   );
 }
 
-function validateBackup(filePath: string) {
+async function getSqliteDatabase() {
+  const { createRequire } = await import("node:module");
+  const require = createRequire(import.meta.url);
+  return require("better-sqlite3") as typeof import("better-sqlite3");
+}
+
+async function validateBackup(filePath: string) {
+  const Database = await getSqliteDatabase();
   const source = new Database(filePath, {
     readonly: true,
     fileMustExist: true,
   });
 
   try {
-    const integrity = source.pragma("integrity_check", { simple: true });
+    const integrity = source.pragma("integrity_check", { simple: true }) as string;
     if (integrity !== "ok") {
       throw new Error("integrity_check failed");
     }
@@ -85,7 +88,7 @@ function validateBackup(filePath: string) {
       source
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
         .all()
-        .map((row) => (row as { name: string }).name),
+        .map((row: unknown) => (row as { name: string }).name),
     );
 
     for (const table of REQUIRED_TABLES) {
@@ -97,7 +100,7 @@ function validateBackup(filePath: string) {
     const settingColumns = source
       .prepare("PRAGMA table_info(Setting)")
       .all()
-      .map((row) => (row as { name: string }).name);
+      .map((row: unknown) => (row as { name: string }).name);
 
     if (!settingColumns.includes("sessionVersion")) {
       throw new Error("Incompatible schema: Setting.sessionVersion is missing");
@@ -121,6 +124,16 @@ export async function POST(request: Request) {
     return Response.json(
       { error: "مش مسموح. سجّل الدخول الأول." },
       { status: 401 },
+    );
+  }
+
+  if (process.env.VERCEL) {
+    return Response.json(
+      {
+        error:
+          "استعادة النسخ الاحتياطية تعمل فقط على SQLite المحلي. استخدم PostgreSQL في Vercel.",
+      },
+      { status: 501 },
     );
   }
 
@@ -175,7 +188,7 @@ export async function POST(request: Request) {
     await writeFile(tempPath, bytes);
 
     try {
-      validateBackup(tempPath);
+      await validateBackup(tempPath);
     } catch (error) {
       console.error("Restore validation failed:", error);
       return Response.json(
@@ -205,9 +218,7 @@ export async function POST(request: Request) {
       await copyFile(tempPath, livePath);
       swapped = true;
 
-      // Invalidate every session that was valid for either the old or the
-      // restored shop. Taking the max + 1 matters when the backup has an older
-      // version than the current one.
+      const Database = await getSqliteDatabase();
       const restored = new Database(livePath);
       try {
         const restoredSetting = restored
@@ -219,63 +230,30 @@ export async function POST(request: Request) {
             setting.sessionVersion,
           ) + 1;
 
-        restored
-          .prepare("UPDATE Setting SET sessionVersion = ? WHERE id = 1")
-          .run(nextVersion);
-        restored.pragma("journal_mode = delete");
+        await db.$executeRawUnsafe(
+          `UPDATE "Setting" SET "sessionVersion" = ${nextVersion} WHERE id = 1`,
+        );
       } finally {
         restored.close();
       }
 
-      await db.$connect();
+      await destroySession();
+
+      return Response.json({ ok: true, restored: true });
     } catch (error) {
-      console.error("Restore swap failed:", error);
-
+      console.error("Restore failed:", error);
       if (swapped) {
-        try {
-          await db.$disconnect();
-        } catch {
-          // The client may already be disconnected.
-        }
-
-        await removeSidecars(livePath);
-        await copyFile(safetyPath, livePath);
-
-        try {
-          await db.$connect();
-        } catch (reconnectError) {
-          console.error("Reconnect after rollback failed:", reconnectError);
-        }
+        await copyFile(safetyPath, livePath).catch(() => undefined);
       }
-
       return Response.json(
-        {
-          error:
-            "حصلت مشكلة أثناء الاسترجاع. رجعنا النسخة القديمة، جرّب تاني.",
-        },
+        { error: "تعذر استرجاع النسخة الاحتياطية. تم الاحتفاظ بالنسخة الحالية." },
         { status: 500 },
       );
+    } finally {
+      await pruneSafetyCopies(backupDirectory, 10).catch(() => undefined);
+      await rm(tempPath, { force: true }).catch(() => undefined);
     }
-
-    try {
-      await destroySession();
-    } catch (error) {
-      console.error("Clearing the session after restore failed:", error);
-    }
-
-    await pruneSafetyCopies(backupDirectory, 10).catch((error) => {
-      console.error("Pruning safety copies failed:", error);
-    });
-
-    return Response.json({ ok: true, redirect: "/login" });
-  } catch (error) {
-    console.error("Restore failed:", error);
-    return Response.json(
-      { error: "تعذر استرجاع النسخة. جرّب تاني." },
-      { status: 500 },
-    );
   } finally {
     restoreInFlight = false;
-    await rm(tempPath, { force: true }).catch(() => undefined);
   }
 }

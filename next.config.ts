@@ -10,7 +10,6 @@ const nextConfig: NextConfig = {
   // VPS/Docker paths — that is what production runs. `next start` prints a
   // warning against it and is only for local smoke tests. See DEPLOYMENT.md.
   output: "standalone",
-  serverExternalPackages: ["@prisma/adapter-better-sqlite3", "better-sqlite3"],
   async headers() {
     return [
       {

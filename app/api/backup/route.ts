@@ -3,8 +3,6 @@ import { readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import Database from "better-sqlite3";
-
 import { getAuthenticatedSetting } from "@/lib/auth/dal";
 import { databaseFilePath } from "@/lib/backup/paths";
 import { todayISO } from "@/lib/dates";
@@ -17,6 +15,20 @@ export async function GET() {
     return Response.json(NOT_AUTHORIZED, { status: 401 });
   }
 
+  const isLocalSqlite =
+    !process.env.VERCEL &&
+    (!process.env.DATABASE_URL || process.env.DATABASE_URL.startsWith("file:"));
+
+  if (!isLocalSqlite) {
+    return Response.json(
+      {
+        error:
+          "نسخ الاحتياطية محمية للبيئة المحلية SQLite فقط. على Vercel استخدم قاعدة بيانات PostgreSQL.",
+      },
+      { status: 501 },
+    );
+  }
+
   const sourcePath = databaseFilePath();
   const tempPath = path.join(
     os.tmpdir(),
@@ -24,14 +36,13 @@ export async function GET() {
   );
 
   try {
+    const Database = (await import("better-sqlite3")).default;
     const source = new Database(sourcePath, {
       readonly: true,
       fileMustExist: true,
     });
 
     try {
-      // SQLite's online backup API produces a consistent snapshot even while
-      // the app is reading or writing.
       await source.backup(tempPath);
     } finally {
       source.close();

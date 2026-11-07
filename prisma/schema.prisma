@@ -1,5 +1,5 @@
 // Daftar — custody & collection manager
-// Prisma 7 + SQLite (driver adapter: better-sqlite3)
+// Prisma 7 + PostgreSQL
 
 generator client {
   provider = "prisma-client"
@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ---------------------------------------------------------------- settings
