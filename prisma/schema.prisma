@@ -71,18 +71,20 @@ model CustodyItem {
 // ---------------------------------------------------------------- customers
 
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  country   String?
-  custodyId String?
-  custody   Custody? @relation(fields: [custodyId], references: [id], onDelete: Cascade)
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  name                String
+  phone               String?
+  country             String?
+  custodyId           String?
+  custody             Custody? @relation(fields: [custodyId], references: [id], onDelete: Cascade)
+  note                String?
+  openingBalanceCents Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   charges  Charge[]
   payments Payment[]
+  invoices SalesInvoice[]
 
   @@index([custodyId])
   @@index([country])
@@ -97,7 +99,14 @@ model Charge {
   amountCents Int
   occurredOn  String
   note        String?
+  // Stock sale (3A): null on every ordinary charge. `quantity` is only set
+  // together with `itemName`.
+  itemName    String?
+  unit        String?
+  quantity    Int?
   createdAt   DateTime  @default(now())
+
+  invoice SalesInvoice?
 
   @@index([occurredOn])
   @@index([custodyId])
@@ -136,6 +145,8 @@ model Product {
 
   movements     StockMovement[]
   custodyReturn CustodyItem[]
+  invoiceLines  SalesInvoiceLine[]
+  invoiceReturn InvoiceReturn[]
 
   @@index([isActive])
 }
@@ -147,18 +158,81 @@ enum StockMovementType {
 }
 
 model StockMovement {
-  id             String            @id @default(cuid())
-  productId      String
-  product        Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  type           StockMovementType
-  quantity       Int
-  unitPriceCents Int?
-  occurredOn     String
-  note           String?
-  custodyItemId  String?           @unique
-  custodyItem    CustodyItem?      @relation(fields: [custodyItemId], references: [id], onDelete: Cascade)
-  createdAt      DateTime          @default(now())
+  id               String            @id @default(cuid())
+  productId        String
+  product          Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type             StockMovementType
+  quantity         Int
+  unitPriceCents   Int?
+  occurredOn       String
+  note             String?
+  custodyItemId    String?           @unique
+  custodyItem      CustodyItem?      @relation(fields: [custodyItemId], references: [id], onDelete: Cascade)
+  // 3B: an invoice's stock-out, or the stock-in of one of its return lines.
+  // Both are cascading so deleting the document restores the stock.
+  salesInvoiceId   String?           @unique
+  salesInvoice     SalesInvoice?     @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+  invoiceReturnId  String?           @unique
+  invoiceReturn    InvoiceReturn?    @relation(fields: [invoiceReturnId], references: [id], onDelete: Cascade)
+  createdAt        DateTime          @default(now())
 
   @@index([productId, occurredOn])
   @@index([occurredOn])
+}
+
+// ---------------------------------------------------------------- invoices (3B)
+
+model SalesInvoice {
+  id            String    @id @default(cuid())
+  // Assigned by the create action (SQLite only supports autoincrement on ids).
+  invoiceNo     Int       @unique
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  occurredOn    String
+  note          String?
+  discountCents Int       @default(0)
+  discountNote  String?
+  chargeId      String?   @unique
+  charge        Charge?   @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  lines     SalesInvoiceLine[]
+  returns   InvoiceReturn[]
+  movements StockMovement[]
+
+  @@index([occurredOn])
+  @@index([customerId])
+}
+
+model SalesInvoiceLine {
+  id             String        @id @default(cuid())
+  invoiceId      String
+  invoice        SalesInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity       Int
+  unitPriceCents Int
+  createdAt      DateTime      @default(now())
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model InvoiceReturn {
+  id             String        @id @default(cuid())
+  invoiceId      String
+  invoice        SalesInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity       Int
+  unitPriceCents Int
+  occurredOn     String
+  note           String?
+  createdAt      DateTime      @default(now())
+
+  stockMovement StockMovement?
+
+  @@index([invoiceId])
+  @@index([productId])
 }
