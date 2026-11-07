@@ -17,6 +17,13 @@ export type ChargeLite = {
   amountCents: number;
 };
 
+/** A stock sale: a charge that carries an item name and a quantity (3A). */
+export type SaleLite = {
+  itemName: string | null;
+  unit: string | null;
+  quantity: number | null;
+};
+
 export type PaymentLite = {
   custodyId: string | null;
   customerId: string | null;
@@ -66,16 +73,18 @@ export function computeCustodyBalance({
 }
 
 export function computeCustomerBalance({
+  openingBalanceCents = 0,
   charges,
   payments,
 }: {
+  openingBalanceCents?: number;
   charges: ChargeLite[];
   payments: PaymentLite[];
 }) {
   const charged = charges.reduce((total, charge) => total + charge.amountCents, 0);
   const paid = payments.reduce((total, payment) => total + payment.amountCents, 0);
 
-  return charged - paid;
+  return openingBalanceCents + charged - paid;
 }
 
 export type StockGroup = {
@@ -84,33 +93,46 @@ export type StockGroup = {
   unit: string | null;
   deliveredQty: number;
   returnedQty: number;
+  soldQty: number;
   netQty: number;
   deliveredValue: number;
   returnedValue: number;
+  soldValue: number;
   netValue: number;
   averageUnitPriceCents: number;
 };
 
-/** Groups a custody's items by name + unit and totals deliveries/returns. */
-export function computeStockGroups(items: CustodyItemLite[]) {
+function emptyStockGroup(key: string, name: string, unit: string | null): StockGroup {
+  return {
+    key,
+    name,
+    unit,
+    deliveredQty: 0,
+    returnedQty: 0,
+    soldQty: 0,
+    netQty: 0,
+    deliveredValue: 0,
+    returnedValue: 0,
+    soldValue: 0,
+    netValue: 0,
+    averageUnitPriceCents: 0,
+  };
+}
+
+/**
+ * Groups a custody's items by name + unit and totals deliveries, returns and
+ * (Phase 3A) sales. `sales` defaults to `[]`, so callers that predate sales
+ * keep the exact numbers they had.
+ */
+export function computeStockGroups(
+  items: CustodyItemLite[],
+  sales: SaleLite[] = [],
+) {
   const groups = new Map<string, StockGroup>();
 
   for (const item of items) {
     const key = `${item.name}|||${item.unit ?? ""}`;
-    const group =
-      groups.get(key) ??
-      ({
-        key,
-        name: item.name,
-        unit: item.unit,
-        deliveredQty: 0,
-        returnedQty: 0,
-        netQty: 0,
-        deliveredValue: 0,
-        returnedValue: 0,
-        netValue: 0,
-        averageUnitPriceCents: 0,
-      } satisfies StockGroup);
+    const group = groups.get(key) ?? emptyStockGroup(key, item.name, item.unit);
 
     if (item.type === "DELIVERY") {
       group.deliveredQty += item.quantity;
@@ -123,16 +145,36 @@ export function computeStockGroups(items: CustodyItemLite[]) {
     groups.set(key, group);
   }
 
+  for (const sale of sales) {
+    if (!sale.itemName || !sale.quantity) continue;
+
+    const key = `${sale.itemName}|||${sale.unit ?? ""}`;
+    // A sale for an item that no longer has delivery rows still gets a group,
+    // otherwise the deduction would silently disappear from the stock view.
+    const group =
+      groups.get(key) ?? emptyStockGroup(key, sale.itemName, sale.unit);
+
+    group.soldQty += sale.quantity;
+    groups.set(key, group);
+  }
+
   return Array.from(groups.values())
-    .map((group) => ({
-      ...group,
-      netQty: group.deliveredQty - group.returnedQty,
-      netValue: group.deliveredValue - group.returnedValue,
-      averageUnitPriceCents:
+    .map((group) => {
+      const averageUnitPriceCents =
         group.deliveredQty > 0
           ? Math.round(group.deliveredValue / group.deliveredQty)
-          : 0,
-    }))
+          : 0;
+      const soldValue = group.soldQty * averageUnitPriceCents;
+
+      return {
+        ...group,
+        soldValue,
+        netQty: group.deliveredQty - group.returnedQty - group.soldQty,
+        netValue:
+          group.deliveredValue - group.returnedValue - soldValue,
+        averageUnitPriceCents,
+      };
+    })
     .sort((a, b) => a.name.localeCompare(b.name, "ar"));
 }
 
@@ -192,9 +234,8 @@ export async function getCustodyBalanceMap() {
 
 export async function getCustomerBalanceMap() {
   const customers = await db.customer.findMany({
-    select: { id: true, custodyId: true },
+    select: { id: true, custodyId: true, openingBalanceCents: true },
   });
-
   const [charges, payments] = await Promise.all([
     db.charge.findMany({
       where: { customerId: { not: null } },
@@ -212,6 +253,7 @@ export async function getCustomerBalanceMap() {
     balances.set(
       customer.id,
       computeCustomerBalance({
+        openingBalanceCents: customer.openingBalanceCents,
         charges: charges.filter((charge) => charge.customerId === customer.id),
         payments: payments.filter(
           (payment) => payment.customerId === customer.id,
@@ -221,6 +263,14 @@ export async function getCustomerBalanceMap() {
   }
 
   return balances;
+}
+
+/** Stock-sale charges of one custody (Phase 3A). */
+export async function getCustodySales(custodyId: string): Promise<SaleLite[]> {
+  return db.charge.findMany({
+    where: { custodyId, itemName: { not: null } },
+    select: { itemName: true, unit: true, quantity: true },
+  });
 }
 
 export async function getProductQuantityMap() {

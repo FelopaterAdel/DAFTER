@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { type FormState } from "@/lib/forms";
-import { computeStockGroups } from "@/lib/queries/balances";
+import { computeStockGroups, getCustodySales } from "@/lib/queries/balances";
 import {
   messages,
   readDate,
@@ -174,7 +174,7 @@ export async function addCustodyReturnAction(
 
   if (!name) return { error: "اختار الصنف اللي راجع من العهدة." };
 
-  const [custody, product, items] = await Promise.all([
+  const [custody, product, items, sales] = await Promise.all([
     db.custody.findUnique({ where: { id: custodyId } }),
     db.product.findUnique({ where: { id: productId } }),
     db.custodyItem.findMany({
@@ -188,12 +188,14 @@ export async function addCustodyReturnAction(
         unitPriceCents: true,
       },
     }),
+    getCustodySales(custodyId),
   ]);
 
   if (!custody) return { error: "العهدة مش موجودة." };
   if (!product) return { error: "منتج المخزن مش موجود." };
 
-  const group = computeStockGroups(items).find(
+  // Sales count against what is really left: delivered − returned − sold.
+  const group = computeStockGroups(items, sales).find(
     (item) => item.name === name && (item.unit ?? "") === (unit ?? ""),
   );
 
