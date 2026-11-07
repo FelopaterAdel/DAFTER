@@ -19,6 +19,7 @@ export function ActionForm({
   children,
   className,
   submitClassName,
+  footerClassName,
   variant = "primary",
   size = "md",
   footer,
@@ -29,6 +30,7 @@ export function ActionForm({
   children: ReactNode;
   className?: string;
   submitClassName?: string;
+  footerClassName?: string;
   variant?: "primary" | "secondary" | "danger" | "gold";
   size?: "sm" | "md" | "lg";
   footer?: ReactNode;
@@ -49,7 +51,9 @@ export function ActionForm({
         </Alert>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
+      <div
+        className={cn("mt-5 flex flex-wrap items-center gap-3", footerClassName)}
+      >
         <Button
           type="submit"
           variant={variant}

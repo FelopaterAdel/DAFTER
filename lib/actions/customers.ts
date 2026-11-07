@@ -5,11 +5,9 @@ import { redirect } from "next/navigation";
 
 import { requireAuth } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
-import { todayISO } from "@/lib/dates";
 import { type FormState } from "@/lib/forms";
 import {
   messages,
-  readDate,
   readMoney,
   readOptionalString,
   readString,
@@ -69,7 +67,6 @@ export async function createCustomerAction(
   const note = readOptionalString(formData, "note");
   const rawCustodyId = readOptionalString(formData, "custodyId");
   const rawAmount = readString(formData, "initialAmount");
-  const occurredOn = readDate(formData, "occurredOn") ?? todayISO();
 
   const validationError = validateCustomer({ name, country, custodyId: rawCustodyId });
   if (validationError) return { error: validationError };
@@ -82,15 +79,13 @@ export async function createCustomerAction(
     return { error: "اكتب بلد أو منطقة الزبون المباشر." };
   }
 
-  let initialAmountCents = 0;
+  // Phase 3E: the first amount is an opening balance, not a fabricated charge,
+  // so the opening-balance screen and this form can never double count.
+  let openingBalanceCents = 0;
   if (rawAmount) {
     const parsed = readMoney(formData, "initialAmount");
     if (!parsed || parsed <= 0) return { error: messages.invalidAmount };
-    initialAmountCents = parsed;
-  }
-
-  if (!readDate(formData, "occurredOn") && rawAmount) {
-    return { error: messages.invalidDate };
+    openingBalanceCents = parsed;
   }
 
   const customer = await db.customer.create({
@@ -100,18 +95,7 @@ export async function createCustomerAction(
       country,
       note,
       custodyId,
-      ...(initialAmountCents > 0
-        ? {
-            charges: {
-              create: {
-                custodyId: null,
-                amountCents: initialAmountCents,
-                occurredOn,
-                note: "رصيد افتتاحي",
-              },
-            },
-          }
-        : {}),
+      openingBalanceCents,
     },
   });
 
