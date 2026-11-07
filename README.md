@@ -1,7 +1,7 @@
 # Daftar — Custody & Daily Collection Manager
 
-> **Status:** Phase 0 complete — foundation ready; Phase 1 next.
-> **Version:** 1.2 — November 2026
+> **Status:** Phase 2 complete — security, reports, CSV/print, deployment and PWA shipped. Phase 3 next.
+> **Version:** 1.3 — November 2026
 > **Currency:** Egyptian Pound (EGP)
 > **Language:** Arabic UI (RTL), mobile-first.
 
@@ -157,7 +157,7 @@ A **delivery** increases the custody balance; a **return** decreases it.
 **Returns:** a return decreases custody stock/balance and creates a warehouse `StockMovement` of type `IN` for the linked `productId`, so the goods appear immediately in my warehouse. The movement is linked to the return and removed with it.
 
 **Custody stock per item** (Phase 1) = sum of delivered quantities − sum of returned quantities, grouped by item name.
-> Once sales are linked to stock (Phase 2), sold quantities will also be deducted.
+> Once sales are linked to stock (Phase 3), sold quantities will also be deducted.
 
 #### `Customer` — customer
 
@@ -406,10 +406,11 @@ Net custody stock per item =
 
 ### 7.10 Settings `/settings`
 
-- Shop name.
-- Change PIN (after entering the old one).
+- Shop name and account info.
+- Change PIN (after entering the old one) — signs other devices out.
 - Currency (locked to EGP for now).
-- Backup: download the database file.
+- Backup: download the database file; restore one from the same screen (with a safety copy).
+- Install card: how to add Daftar to the home screen (Android / iOS).
 - Logout.
 - About.
 
@@ -436,16 +437,32 @@ Net custody stock per item =
 - Customer statement.
 - Daily cash summary (custody collections + direct customer payments).
 
-### Phase 2
+### Phase 2 — shipped
 
-- Daily/weekly/monthly collection report.
-- Custody debt report.
-- Customer debt report with aging buckets (0–30, 31–60, 60+ days).
-- Warehouse movement and stock value report.
-- Printable/PDF statements (no receipt printing).
-- CSV/Excel export.
+| Screen | Route | Notes |
+|---|---|---|
+| Reports hub | `/reports` | Entry point for all four reports. |
+| Collections report | `/reports/collections` | Day / week (Saturday) / month grouping, optional custody filter. |
+| Custody debt report | `/reports/custody-debts` | Debtors and creditors, totals and net. |
+| Customer debt + aging | `/reports/customer-debts` | All / custody / direct, aging buckets 0–30, 31–60, 60+. |
+| Warehouse report | `/reports/warehouse` | Stock value (cost & sale), in/out/adjust per product. |
+| Customer statement | `/customers/[id]` | Printable statement. |
+| Custody statement | `/custodies/[id]?tab=statement` | Printable statement. |
 
-> Receipt printing is out of scope. Statement printing/PDF is optional in Phase 2.
+**CSV export** — `GET /api/export/<report>` where `<report>` is one of
+`collections`, `custody-debts`, `customer-debts`, `warehouse`. The link on each
+report page carries the current query string, so the file matches exactly what
+is on screen.
+
+- UTF-8 with BOM (Excel renders Arabic correctly), CRLF line endings.
+- Arabic header row; amounts as plain decimals (`1234.50`); dates `YYYY-MM-DD`.
+- Requires the session cookie — unauthenticated requests get `401`.
+
+**Print / PDF** — the “طباعة” button on reports and statements opens the
+browser print dialog (use “Save as PDF” there). Navigation, filters and action
+buttons carry `print:hidden`, and the print stylesheet sets A4 page size,
+repeats table headers and keeps rows whole. Each printed page gets a header
+with the shop name, title, period and print date.
 
 ---
 
@@ -462,7 +479,7 @@ Net custody stock per item =
 | Icons | Custom SVGs or a lightweight library |
 | Font | Clear Arabic font (Cairo / IBM Plex Sans Arabic) |
 | Auth | PIN + signed session cookie |
-| Deployment | Decided later (VPS with persistent disk or cloud Postgres) |
+| Deployment | VPS + SQLite + Caddy + systemd (Docker alternative), see `DEPLOYMENT.md` |
 
 ### Why SQLite?
 
@@ -542,33 +559,34 @@ prisma/
 
 ### Phase 1 — Core features
 
-- [ ] Custodies: list + create/edit + details.
-- [ ] Custody stock (deliveries).
-- [ ] Custody returns.
-- [ ] Customers (custody + direct) + balances.
-- [ ] Charges and customer payments.
-- [ ] Daily collections + filters.
-- [ ] My warehouse: products + movements.
-- [ ] Dashboard totals and today's cash.
-- [ ] Statements.
+- [x] Custodies: list + create/edit + details.
+- [x] Custody stock (deliveries).
+- [x] Custody returns.
+- [x] Customers (custody + direct) + balances.
+- [x] Charges and customer payments.
+- [x] Daily collections + filters.
+- [x] My warehouse: products + movements.
+- [x] Dashboard totals and today's cash.
+- [x] Statements.
 
-### Phase 2 — Reports and polish
+### Phase 2 — Reports, security, export & deployment
 
-- [ ] Daily/monthly reports.
-- [ ] CSV/Excel export.
-- [ ] Statement printing/PDF.
-- [ ] Advanced search and saved filters.
-- [ ] Debt aging.
-- [ ] One-click backup and restore.
+- [x] Four reports: collections (day/week/month), custody debt, customer debt + aging, warehouse.
+- [x] CSV export (UTF-8 BOM, Arabic headers, server-generated).
+- [x] Statement/report printing → PDF via the browser print dialog.
+- [x] PIN change with session revocation on every other device.
+- [x] One-click backup download + restore (with safety copy).
+- [x] Deployment artifacts + `DEPLOYMENT.md` (VPS/Caddy/systemd, Docker alternative).
+- [x] PWA manifest + icons (installable, **no** service worker — no cached money data).
+- [ ] Advanced search and saved filters → deferred.
+- [x] Debt aging (0–30 / 31–60 / 60+ buckets).
 
 ### Phase 3 — Expansion
 
-- [ ] Link sales to automatic custody stock deduction.
+- [ ] Link sales to automatic custody stock deduction *(moved here from Phase 2)*.
 - [ ] Warehouse transfers.
-- [ ] PWA / offline support.
 - [ ] Multiple users.
 - [ ] Collection reminders.
-- [ ] Online deployment + scheduled backups.
 - [ ] Import old data (final task).
 
 ---
@@ -622,26 +640,46 @@ prisma/
 ## 13. Security and backups
 
 - PIN hashed with scrypt + salt.
-- Session signed with HMAC, valid for 30 days.
-- Temporary lockout after 5 failed login attempts.
-- All inputs validated on the server.
-- Database file excluded from Git.
-- Manual backup from Settings (download the file).
-- In production: mandatory HTTPS + daily automatic backups.
-- Recommendation: keep a weekly copy on a separate device/cloud.
+- Session signed with HMAC, valid for 30 days; changing the PIN bumps `sessionVersion` and signs every other device out.
+- Temporary lockout after 5 failed login attempts (login and PIN change tracked separately).
+- All inputs validated on the server; API routes return `401` JSON instead of redirecting.
+- Database file excluded from Git; `.env` excluded too (`.env.example` is committed).
+- Security headers (nosniff, `X-Frame-Options: DENY`, Referrer-Policy, Permissions-Policy, HSTS in production) from `next.config.ts` + Caddy.
+
+### Backup and restore
+
+```bash
+# Nightly backup (SQLite online backup — safe while the app is running)
+node scripts/backup.mjs                 # → backups/daftar-YYYY-MM-DD.db, keeps 14 days
+node scripts/backup.mjs --keep 30 --out /mnt/usb/daftar
+
+# Restore (app must be stopped)
+DATABASE_URL="file:./prisma/dev.db" node scripts/restore.mjs backups/daftar-2026-11-07.db
+```
+
+From the app: **Settings → النسخ الاحتياطي** downloads the database, and the
+same screen restores one — it validates the file, keeps a `pre-restore-*.db`
+safety copy, signs every device out, and then you log in again.
+
+See `DEPLOYMENT.md` for the cron example, off-machine copies and a restore drill.
 
 ---
 
-## 14. Deployment options (decided before Phase 3)
+## 14. Deployment (decided)
+
+**Chosen: VPS + SQLite + Caddy + systemd** — the data stays with the owner,
+backups are a single file, and Caddy handles HTTPS automatically. A Docker
+path (`Dockerfile` + `docker-compose.yml`) ships as an alternative with the
+SQLite file on a named volume.
+
+Full steps, cron backup, restore drill and troubleshooting: **`DEPLOYMENT.md`**.
 
 | Option | Pros | Cons |
 |---|---|---|
-| **VPS + SQLite** | Cheap, data stays with you, simple backups | Requires light server management |
-| **Railway/Render + persistent disk** | Easy deploy, SQLite works | Monthly cost, disk may be limited |
-| **Vercel + Postgres (Neon/Supabase)** | Free to start, reliable, no server | Requires switching the database + a cloud account |
-| **Your machine + Tailscale** | Completely free, local data | Your machine must stay on; not always online |
-
-**Initial recommendation:** start with local SQLite, then choose a VPS with a persistent disk at deployment time (or Postgres if using Vercel). The design does not rely on SQLite-specific features, so migration is possible.
+| **VPS + SQLite** *(chosen)* | Cheap, data stays with you, simple backups | Requires light server management |
+| Railway/Render + persistent disk | Easy deploy, SQLite works | Monthly cost, disk may be limited |
+| Vercel + Postgres (Neon/Supabase) | Free to start, reliable, no server | Requires switching the database + a cloud account |
+| Your machine + Tailscale | Completely free, local data | Your machine must stay on; not always online |
 
 ---
 
@@ -712,3 +750,5 @@ AUTH_SECRET="put-a-long-random-value-here"
 | 2026-11-04 | Finalized returns (deduct from custody stock), payment routing (custody customers → seller, direct customers → you), no receipt printing, old-data import moved to the final phase, README translated to English. |
 | 2026-11-05 | Returns now also add the goods to my warehouse via a linked product; PIN fixed at exactly 4 digits; open decisions resolved and Phase 0 started. |
 | 2026-11-05 | Phase 0 complete: Prisma 7 + SQLite schema/migration, PIN auth + signed sessions + proxy protection, RTL Arabic shell, self-hosted Cairo font, and core UI components. |
+| 2026-11-06 | Phase 1 complete: custodies, stock and returns, customers (custody + direct), charges/payments routing, daily collections, warehouse, dashboard totals and statements. |
+| 2026-11-07 | Phase 2 complete: PIN change with session revocation, backup/restore with safety copies, four reports with aging, CSV export (BOM + Arabic headers), A4 print/PDF, security headers, deployment artifacts (`DEPLOYMENT.md`, Caddy, systemd, Docker) and an installable PWA manifest without a service worker. Sales↔custody-stock linking moved to Phase 3. |

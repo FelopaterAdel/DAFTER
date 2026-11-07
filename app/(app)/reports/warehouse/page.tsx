@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { PrintButton } from "@/components/reports/print-button";
+import { PrintHeader } from "@/components/reports/print-header";
 import { ReportNav } from "@/components/reports/report-nav";
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BoxIcon, WalletIcon } from "@/components/ui/icons";
+import { BoxIcon, DownloadIcon, WalletIcon } from "@/components/ui/icons";
 import { Field, Input, Select } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -24,6 +26,7 @@ import { formatDate, todayISO } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { getWarehouseReport } from "@/lib/queries/reports";
 import { defaultPeriod, normalizeRange } from "@/lib/reports/periods";
+import { first, searchQueryString } from "@/lib/reports/params";
 
 export const metadata: Metadata = {
   title: "تقرير المخزن",
@@ -36,10 +39,6 @@ type SearchParams = Promise<{
   to?: string | string[];
   productId?: string | string[];
 }>;
-
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
-}
 
 const statusMeta = {
   in: { label: "متوفر", tone: "success" as const },
@@ -56,9 +55,10 @@ export default async function WarehouseReportPage({
 }: {
   searchParams: SearchParams;
 }) {
-  await requireAuth();
+  const setting = await requireAuth();
 
   const params = await searchParams;
+  const query = searchQueryString(params);
   const today = todayISO();
   const period = normalizeRange(
     first(params.from),
@@ -86,17 +86,33 @@ export default async function WarehouseReportPage({
 
   return (
     <>
+      <PrintHeader
+        shopName={setting.shopName}
+        title="تقرير المخزن"
+        period={`${formatDate(period.from)} إلى ${formatDate(period.to)}`}
+      />
+
       <PageHeader
         eyebrow="التقارير"
         title="تقرير المخزن"
         description="قيمة البضاعة الموجودة عندك، وحركة الإدخال والإخراج والتسويات في الفترة."
         actions={
-          <Link
-            href="/reports"
-            className={buttonStyles({ variant: "secondary", size: "sm" })}
-          >
-            كل التقارير
-          </Link>
+          <>
+            <Link
+              href={`/api/export/warehouse${query}`}
+              className={buttonStyles({ variant: "secondary", size: "sm" })}
+            >
+              <DownloadIcon className="size-4" />
+              تصدير CSV
+            </Link>
+            <PrintButton />
+            <Link
+              href="/reports"
+              className={buttonStyles({ variant: "ghost", size: "sm" })}
+            >
+              كل التقارير
+            </Link>
+          </>
         }
       />
 
@@ -141,7 +157,7 @@ export default async function WarehouseReportPage({
         <CardContent className="pt-4">
           <form
             method="get"
-            className="mb-4 grid gap-3 rounded-xl bg-surface-muted/50 p-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
+            className="mb-4 grid gap-3 rounded-xl bg-surface-muted/50 p-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end print:hidden"
           >
             <Field label="من تاريخ" htmlFor="warehouse-report-from">
               <Input

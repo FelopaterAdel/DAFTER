@@ -6,6 +6,8 @@ import { BackLink } from "@/components/layout/back-link";
 import { PageHeader } from "@/components/layout/page-header";
 import { ActionForm } from "@/components/forms/action-form";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit";
+import { PrintButton } from "@/components/reports/print-button";
+import { PrintHeader } from "@/components/reports/print-header";
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,7 +65,7 @@ export default async function CustomerPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAuth();
+  const setting = await requireAuth();
 
   const { id } = await params;
   const customer = await db.customer.findUnique({
@@ -127,6 +129,12 @@ export default async function CustomerPage({
 
   return (
     <>
+      <PrintHeader
+        shopName={setting.shopName}
+        title={`كشف حساب ${customer.name}`}
+        period={isCustodyCustomer ? `عهدة ${customer.custody?.name}` : "زبون مباشر"}
+      />
+
       <BackLink href="/customers">كل الزبائن</BackLink>
 
       <PageHeader
@@ -148,6 +156,7 @@ export default async function CustomerPage({
               <ChartIcon className="size-4" />
               تقرير
             </Link>
+            <PrintButton label="طباعة الكشف" />
             <Link
               href={`/customers/${customer.id}/edit`}
               className={buttonStyles({ variant: "secondary", size: "sm" })}

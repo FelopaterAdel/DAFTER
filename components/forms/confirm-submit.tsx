@@ -23,7 +23,7 @@ export function ConfirmSubmitButton({
     <button
       type="submit"
       title={title}
-      className={buttonStyles({ variant, size, className })}
+      className={buttonStyles({ variant, size, className: `print:hidden ${className ?? ""}` })}
       onClick={(event) => {
         if (!window.confirm(message)) event.preventDefault();
       }}

@@ -22,7 +22,7 @@ export function Tabs({
     <nav
       aria-label={ariaLabel}
       className={cn(
-        "mb-5 flex gap-1 overflow-x-auto rounded-2xl border border-line bg-surface p-1.5 shadow-card",
+        "mb-5 flex gap-1 overflow-x-auto rounded-2xl border border-line bg-surface p-1.5 shadow-card print:hidden",
         className,
       )}
     >

@@ -19,6 +19,7 @@ import {
   LockIcon,
   LogoutIcon,
   ShieldIcon,
+  SparkIcon,
 } from "@/components/ui/icons";
 import { Field, Input } from "@/components/ui/input";
 import { changePinAction, logoutAction } from "@/lib/actions/auth";
@@ -224,6 +225,39 @@ export default async function SettingsPage() {
             <div className="border-t border-line/70 pt-5">
               <RestoreForm />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>ثبّت دفتر على شاشتك</CardTitle>
+            <Badge tone="gold">
+              <SparkIcon className="me-1 size-3.5" />
+              PWA
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-4 text-sm leading-7 text-muted">
+            <p>
+              دفتر بيشتغل من المتصفح، وتقدر تضيفه لأيقونة على شاشة الموبايل
+              زي أي تطبيق عادي.
+            </p>
+
+            <div className="space-y-2 rounded-xl bg-surface-muted px-3.5 py-3 text-xs leading-6 text-ink">
+              <p>
+                <span className="font-extrabold">أندرويد:</span> افتح قائمة
+                Chrome واختار «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».
+              </p>
+              <p>
+                <span className="font-extrabold">آيفون:</span> زر المشاركة في
+                Safari واختار «إضافة إلى الشاشة الرئيسية».
+              </p>
+            </div>
+
+            <p className="text-xs leading-6 text-muted">
+              دفتر بيحمّل بياناته من السيرفر في كل مرة، من غير ما يخزّن أي
+              أرصدة على الجهاز — عشان تفضل دايمًا محدّثة، ومحتاج اتصال
+              بالإنترنت.
+            </p>
           </CardContent>
         </Card>
       </div>

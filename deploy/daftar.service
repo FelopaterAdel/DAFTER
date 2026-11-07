@@ -1,0 +1,42 @@
+[Unit]
+Description=Daftar — custody & collection manager (Next.js)
+Documentation=file:///srv/daftar/DEPLOYMENT.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=daftar
+Group=daftar
+WorkingDirectory=/srv/daftar
+
+# DATABASE_URL and AUTH_SECRET live here (chmod 600, owned by daftar).
+EnvironmentFile=/srv/daftar/.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+Environment=NEXT_TELEMETRY_DISABLED=1
+
+# Apply pending migrations before (re)starting — safe to run every time.
+ExecStartPre=/srv/daftar/node_modules/.bin/prisma migrate deploy
+
+# Standalone server produced by `next build` with output: "standalone".
+# Build step already copied public/ and .next/static/ into it (see DEPLOYMENT.md).
+ExecStart=/usr/bin/node .next/standalone/server.js
+
+Restart=always
+RestartSec=5
+
+# The database lives in /data — keep the service away from the rest of the box.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/daftar /data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

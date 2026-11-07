@@ -1,0 +1,25 @@
+# Keep secrets and local state out of the image build context.
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output are rebuilt inside the image.
+node_modules
+.next
+generated
+*.tsbuildinfo
+
+# Local databases and backups — never ship the owner's data.
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal
+prisma/backups
+backups
+
+# Not needed at runtime.
+.git
+.github
+deploy
+PHASE-2.md
+README.md

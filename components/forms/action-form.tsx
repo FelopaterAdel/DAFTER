@@ -36,7 +36,7 @@ export function ActionForm({
   const [state, formAction, pending] = useActionState(action, initialFormState);
 
   return (
-    <form action={formAction} className={className}>
+    <form action={formAction} className={cn("print:hidden", className)}>
       {children}
 
       {state.error ? (
@@ -77,7 +77,7 @@ export function InlineActionForm({
   const [state, formAction, pending] = useActionState(action, initialFormState);
 
   return (
-    <form action={formAction} className={cn("space-y-3", className)}>
+    <form action={formAction} className={cn("space-y-3 print:hidden", className)}>
       {children}
       {state.error ? <Alert>{state.error}</Alert> : null}
       {state.success ? (

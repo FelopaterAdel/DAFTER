@@ -74,3 +74,35 @@
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
 }
+
+/* Reports and statements are printed as A4 documents: navigation, filters and
+   action buttons are already marked `print:hidden`; this trims the page chrome,
+   repeats table headers and keeps rows whole across pages. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff;
+    background-image: none;
+  }
+
+  main {
+    max-width: none;
+    padding: 0;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: none;
+  }
+}

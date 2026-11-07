@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { PrintButton } from "@/components/reports/print-button";
+import { PrintHeader } from "@/components/reports/print-header";
 import { ReportNav } from "@/components/reports/report-nav";
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { WalletIcon } from "@/components/ui/icons";
+import { DownloadIcon, WalletIcon } from "@/components/ui/icons";
 import { Field, Input, Select } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -26,9 +28,10 @@ import { getCollectionsReport } from "@/lib/queries/reports";
 import type { CollectionsGrouping } from "@/lib/queries/reports";
 import {
   defaultPeriod,
-  formatMonthLabel,
+  formatGroupLabel,
   normalizeRange,
 } from "@/lib/reports/periods";
+import { first, searchQueryString } from "@/lib/reports/params";
 
 export const metadata: Metadata = {
   title: "تقرير التحصيل",
@@ -43,16 +46,6 @@ type SearchParams = Promise<{
   custodyId?: string | string[];
 }>;
 
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
-}
-
-function groupLabel(groupBy: CollectionsGrouping, key: string) {
-  if (groupBy === "month") return `شهر ${formatMonthLabel(key)}`;
-  if (groupBy === "week") return `أسبوع ${formatDate(key)}`;
-  return formatDate(key);
-}
-
 const groupOptions: Array<{ value: CollectionsGrouping; label: string }> = [
   { value: "day", label: "يومي" },
   { value: "week", label: "أسبوعي (السبت)" },
@@ -64,9 +57,10 @@ export default async function CollectionsReportPage({
 }: {
   searchParams: SearchParams;
 }) {
-  await requireAuth();
+  const setting = await requireAuth();
 
   const params = await searchParams;
+  const query = searchQueryString(params);
   const today = todayISO();
   const period = normalizeRange(
     first(params.from),
@@ -97,17 +91,36 @@ export default async function CollectionsReportPage({
 
   return (
     <>
+      <PrintHeader
+        shopName={setting.shopName}
+        title={`تقرير التحصيل — ${formatDate(period.from)} إلى ${formatDate(period.to)}`}
+        period={
+          groupOptions.find((option) => option.value === groupBy)?.label ??
+          "يومي"
+        }
+      />
+
       <PageHeader
         eyebrow="التقارير"
         title="تقرير التحصيل"
         description="كل كاش دخل في الفترة، مقسّم بين تحصيل العهد والدفعات المباشرة."
         actions={
-          <Link
-            href="/reports"
-            className={buttonStyles({ variant: "secondary", size: "sm" })}
-          >
-            كل التقارير
-          </Link>
+          <>
+            <Link
+              href={`/api/export/collections${query}`}
+              className={buttonStyles({ variant: "secondary", size: "sm" })}
+            >
+              <DownloadIcon className="size-4" />
+              تصدير CSV
+            </Link>
+            <PrintButton />
+            <Link
+              href="/reports"
+              className={buttonStyles({ variant: "ghost", size: "sm" })}
+            >
+              كل التقارير
+            </Link>
+          </>
         }
       />
 
@@ -162,7 +175,7 @@ export default async function CollectionsReportPage({
         <CardContent className="pt-4">
           <form
             method="get"
-            className="mb-4 grid gap-3 rounded-xl bg-surface-muted/50 p-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
+            className="mb-4 grid gap-3 rounded-xl bg-surface-muted/50 p-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end print:hidden"
           >
             <Field label="من تاريخ" htmlFor="report-from">
               <Input
@@ -241,7 +254,7 @@ export default async function CollectionsReportPage({
                 {report.rows.map((row) => (
                   <TableRow key={row.key}>
                     <TableCell className="whitespace-nowrap font-semibold text-ink">
-                      {groupLabel(groupBy, row.key)}
+                      {formatGroupLabel(groupBy, row.key)}
                     </TableCell>
                     <TableCell className="text-muted">{row.count}</TableCell>
                     <TableCell className="whitespace-nowrap text-muted">

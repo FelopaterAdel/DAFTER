@@ -1,0 +1,30 @@
+# Daftar in Docker — persistent SQLite on a named volume.
+#
+#   cp .env.example .env      # then set AUTH_SECRET
+#   docker compose up -d --build
+#   docker compose logs -f
+#
+# First start creates /data/daftar.db and sends you to /setup to create the PIN.
+# Point Caddy (deploy/Caddyfile) at 127.0.0.1:3000 for HTTPS.
+
+services:
+  daftar:
+    build: .
+    image: daftar:latest
+    container_name: daftar
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Always inside the volume, whatever .env says.
+      DATABASE_URL: file:/data/daftar.db
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - daftar-data:/data
+      # Nightly backups land here: cron runs `docker compose exec daftar node scripts/backup.mjs`
+      - ./backups:/app/backups
+
+volumes:
+  daftar-data:
+    name: daftar-data

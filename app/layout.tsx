@@ -20,13 +20,15 @@ export const metadata: Metadata = {
   description:
     "دفتر بسيط لإدارة العهد والبضاعة والزبائن والتحصيل اليومي ومخزنك الخاص.",
   applicationName: "دفتر",
+  // `app/manifest.ts` is auto-linked as /manifest.webmanifest.
   icons: {
     icon: "/favicon.ico",
+    apple: "/icons/apple-touch-icon.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f7f3ea",
+  themeColor: "#17553d",
   width: "device-width",
   initialScale: 1,
 };

@@ -65,7 +65,7 @@ export function DesktopSidebar({
   const pathname = usePathname();
 
   return (
-    <aside className="sticky top-0 hidden h-dvh flex-col border-l border-line/80 bg-surface/75 px-4 py-6 backdrop-blur lg:flex">
+    <aside className="sticky top-0 hidden h-dvh flex-col border-l border-line/80 bg-surface/75 px-4 py-6 backdrop-blur lg:flex print:hidden">
       <div className="px-2">
         <Brand />
       </div>
@@ -145,7 +145,7 @@ export function MobileHeader({
   logout: () => Promise<void>;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line/70 bg-paper/90 px-4 py-3 backdrop-blur lg:hidden">
+    <header className="sticky top-0 z-30 border-b border-line/70 bg-paper/90 px-4 py-3 backdrop-blur lg:hidden print:hidden">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
         <Brand />
         <div className="flex items-center gap-1">
@@ -177,7 +177,7 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="التنقل السفلي"
-      className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line/80 bg-surface/95 px-2 pt-1.5 backdrop-blur lg:hidden"
+      className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line/80 bg-surface/95 px-2 pt-1.5 backdrop-blur lg:hidden print:hidden"
     >
       <div className="mx-auto grid max-w-md grid-cols-6">
         {primaryItems.map((item) => {

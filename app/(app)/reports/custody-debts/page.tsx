@@ -2,12 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { PrintButton } from "@/components/reports/print-button";
+import { PrintHeader } from "@/components/reports/print-header";
 import { ReportNav } from "@/components/reports/report-nav";
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BriefcaseIcon, WalletIcon } from "@/components/ui/icons";
+import {
+  BriefcaseIcon,
+  DownloadIcon,
+  WalletIcon,
+} from "@/components/ui/icons";
 import { StatCard } from "@/components/ui/stat-card";
 import {
   Table,
@@ -28,23 +34,38 @@ export const metadata: Metadata = {
 export const instant = false;
 
 export default async function CustodyDebtsReportPage() {
-  await requireAuth();
+  const setting = await requireAuth();
 
   const report = await getCustodyDebtReport();
 
   return (
     <>
+      <PrintHeader
+        shopName={setting.shopName}
+        title="مديونيات العهد"
+      />
+
       <PageHeader
         eyebrow="التقارير"
         title="مديونيات العهد"
         description="الأرصدة المستحقة على كل عهدة، والأرصدة الدائنة اللي دفعتها زيادة."
         actions={
-          <Link
-            href="/reports"
-            className={buttonStyles({ variant: "secondary", size: "sm" })}
-          >
-            كل التقارير
-          </Link>
+          <>
+            <Link
+              href="/api/export/custody-debts"
+              className={buttonStyles({ variant: "secondary", size: "sm" })}
+            >
+              <DownloadIcon className="size-4" />
+              تصدير CSV
+            </Link>
+            <PrintButton />
+            <Link
+              href="/reports"
+              className={buttonStyles({ variant: "ghost", size: "sm" })}
+            >
+              كل التقارير
+            </Link>
+          </>
         }
       />
 

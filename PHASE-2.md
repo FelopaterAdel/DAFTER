@@ -1,7 +1,7 @@
 # Daftar — Phase 2 Plan
 
-> **Status:** In progress — 2A complete and verified; 2B next.
-> **Date:** 6 November 2026
+> **Status:** Complete — 2A, 2B, 2C and 2E shipped and verified; 2D deferred to Phase 3 by owner decision.
+> **Date:** 7 November 2026
 > **Baseline:** Phase 1 is complete and verified. `prisma/dev.db` is clean.
 > **Goal:** make Daftar safe to trust with real money, answer “where is my money?” with reports, get data out as CSV/print, and run it online.
 
@@ -11,17 +11,18 @@
 
 Phase 2 is done when all of the following are true:
 
-- [ ] The PIN can be changed from Settings, and every other device is signed out.
-- [ ] The owner can download a consistent SQLite backup from Settings.
-- [ ] The owner can restore a backup, with a safety copy and a clear failure path.
-- [ ] Reports exist for collections, custody debt, customer debt/aging, and warehouse stock value.
-- [ ] Every report can be exported as CSV and printed / saved as PDF from the browser.
-- [ ] The app can be deployed online with HTTPS, persistent SQLite storage, and scheduled backups.
-- [ ] The app is installable on a phone (PWA manifest + icons), without caching private data offline.
-- [ ] `tsc --noEmit`, `eslint .`, and `next build` pass.
-- [ ] Test data is removed and `prisma/dev.db` is back to its pre-Phase-2 state (or contains only the owner’s real data).
+- [x] The PIN can be changed from Settings, and every other device is signed out.
+- [x] The owner can download a consistent SQLite backup from Settings.
+- [x] The owner can restore a backup, with a safety copy and a clear failure path.
+- [x] Reports exist for collections, custody debt, customer debt/aging, and warehouse stock value.
+- [x] Every report can be exported as CSV and printed / saved as PDF from the browser.
+- [x] The app can be deployed online with HTTPS, persistent SQLite storage, and scheduled backups *(artifacts + docs; no live VPS in Phase 2)*.
+- [x] The app is installable on a phone (PWA manifest + icons), without caching private data offline.
+- [x] `tsc --noEmit`, `eslint .`, and `next build` pass.
+- [x] Test data is removed and `prisma/dev.db` is back to its pre-Phase-2 state (or contains only the owner’s real data).
 
-If the optional sales-automation workstream (2D) is not approved, remove its checkbox from the definition of done and ship 2A–2C + 2E.
+The optional sales-automation workstream (2D) was **not** approved for Phase 2 —
+it moves to Phase 3, so it has no checkbox here. 2A–2C + 2E shipped.
 
 ---
 
@@ -534,14 +535,14 @@ Recommended: **VPS + SQLite + Caddy + systemd**, because data stays with the own
 
 Deliverables:
 
-- [ ] `DEPLOYMENT.md` — VPS steps, DNS, Caddy, systemd, backup cron, restore drill.
-- [ ] `.env.example`
-- [ ] `deploy/Caddyfile`
-- [ ] `deploy/daftar.service`
-- [ ] `Dockerfile` + `docker-compose.yml` (optional alternative; persistent volume for `/data`).
-- [ ] `scripts/backup.mjs` — online SQLite backup to `backups/daftar-YYYY-MM-DD.db`, keep 14 days.
-- [ ] Cron example: `15 2 * * * cd /srv/daftar && node scripts/backup.mjs`.
-- [ ] Health check: `GET /login` returns `200`.
+- [x] `DEPLOYMENT.md` — VPS steps, DNS, Caddy, systemd, backup cron, restore drill.
+- [x] `.env.example`
+- [x] `deploy/Caddyfile`
+- [x] `deploy/daftar.service`
+- [x] `Dockerfile` + `.dockerignore` + `docker-compose.yml` (optional alternative; persistent volume for `/data`).
+- [x] `scripts/backup.mjs` — online SQLite backup to `backups/daftar-YYYY-MM-DD.db`, keep 14 days.
+- [x] Cron example: `15 2 * * * cd /srv/daftar && node scripts/backup.mjs` (in `DEPLOYMENT.md`).
+- [x] Health check: `GET /login` returns `200` (Docker `HEALTHCHECK` + `DEPLOYMENT.md`).
 
 ### 8.2 Security headers
 
@@ -573,6 +574,12 @@ Do not add a strict CSP in Phase 2; Next’s inline scripts make it easy to brea
 
 ### 8.4 Acceptance
 
+> Verified in Phase 2: manifest validity + icons served, no service worker,
+> security headers, backup/restore drill, `AUTH_SECRET` fail-fast, `next build`
+> with an absolute `DATABASE_URL`. The rows that need a real server (fresh
+> volume → `/setup`, HTTPS enforcement, phone install) are owner tasks for the
+> live cutover — 2E was scoped as artifacts + docs only.
+
 - Fresh server + empty volume → `/setup` works; data persists across restart.
 - HTTPS is enforced; HTTP redirects.
 - `AUTH_SECRET` missing in production → app fails fast instead of using the dev secret.
@@ -580,7 +587,7 @@ Do not add a strict CSP in Phase 2; Next’s inline scripts make it easy to brea
 - Cron creates a valid backup; restore drill succeeds on a copy.
 - Manifest validates; Android/iOS “Add to Home Screen” opens standalone.
 - No private page is cached by a service worker.
-- `next build` and `next start` pass with an absolute `DATABASE_URL`.
+- `next build` passes with an absolute `DATABASE_URL`. Note: with `output: "standalone"`, `next start` prints a warning — production runs `node .next/standalone/server.js` (see `DEPLOYMENT.md`); `next start` remains usable for local smoke tests.
 
 ---
 
@@ -596,7 +603,7 @@ Do not add a strict CSP in Phase 2; Next’s inline scripts make it easy to brea
 - Keep the existing visual language: warm paper background, white cards, green primary, gold accents, large numbers.
 - Arabic UI strings should match the existing Egyptian tone; errors must say what to do next.
 - Before writing code, read the Next 16 docs bundled in `node_modules/next/dist/docs/` for route handlers, metadata/manifest, caching, and `connection()`.
-- This repo is **not** a git repo. Do not rely on commits; rely on DB snapshots and file backups.
+- This repo **is** a git repo (three commits on `main`); Phase 2 changes were left uncommitted at close-out. Keep DB snapshots for data safety — commits do not protect `prisma/*.db` (it is gitignored).
 
 ---
 
@@ -604,8 +611,8 @@ Do not add a strict CSP in Phase 2; Next’s inline scripts make it easy to brea
 
 ### Checkpoint 0 — Prepare
 
-- [ ] Confirm the scope decisions in §12.
-- [ ] Snapshot the live DB:
+- [x] Confirm the scope decisions in §12.
+- [x] Snapshot the live DB:
 
 ```bash
 mkdir -p /tmp/opencode
@@ -638,35 +645,46 @@ Verified on `prisma/test.db` (PIN `1234`): collections EGP 320 (custody 300 + di
 
 ### Checkpoint 3 — 2C
 
-- [ ] CSV for all four reports; BOM + Arabic headers verified in LibreOffice/Excel.
-- [ ] Print CSS verified via browser print preview.
-- [ ] Statement print buttons added.
-- [ ] `tsc`, `eslint`, `next build` pass.
+- [x] CSV for all four reports; BOM + Arabic headers verified (bytes checked: `efbbbf` BOM, CRLF, Arabic header row; opened as UTF-8 text — no LibreOffice/Excel available in this environment).
+- [x] Print CSS verified via browser print preview (headless Chromium emulating `print` media: sidebar, mobile header, bottom nav, report tabs, filter form, export/print buttons all `display:none`; print header `block`; table visible. A real `printToPDF` render contains the header, the totals and no navigation).
+- [x] Statement print buttons added (`/customers/[id]`, `/custodies/[id]?tab=statement`, all four reports).
+- [x] `tsc`, `eslint`, `next build` pass.
 
-### Checkpoint 4 — 2D (only if approved)
+Verified against `prisma/test.db`: all four exports `200` with BOM and the
+expected fixture totals (collections 320.00, custody debt 1300.00, customer
+debt 200.00 with buckets summing, warehouse qty 6 / cost 180.00); no cookie →
+`401`; malformed date → `400`; unknown report → `404`.
 
-- [ ] Shortfall policy implemented.
-- [ ] Stock tab shows sold quantities.
-- [ ] Charge create/delete round-trip verified.
-- [ ] Custody balance unchanged by sales.
-- [ ] `tsc`, `eslint`, `next build` pass.
+### Checkpoint 4 — 2D — **deferred to Phase 3**
+
+Owner decision: “Defer 2D to Phase 3”. No shortfall policy, schema or UI was
+implemented; custody stock stays deliveries − returns. Nothing to verify here.
+
+- [ ] Shortfall policy implemented. *(moved to Phase 3)*
+- [ ] Stock tab shows sold quantities. *(moved to Phase 3)*
+- [ ] Charge create/delete round-trip verified. *(moved to Phase 3)*
+- [ ] Custody balance unchanged by sales. *(moved to Phase 3)*
+- [ ] `tsc`, `eslint`, `next build` pass. *(n/a — no 2D code)*
 
 ### Checkpoint 5 — 2E
 
-- [ ] Deployment doc + files.
-- [ ] Fresh deploy, HTTPS, persistent volume.
-- [ ] Backup cron + restore drill.
-- [ ] Manifest/icons verified on a phone.
-- [ ] Security headers verified.
-- [ ] `tsc`, `eslint`, `next build` pass.
+Scope agreed with the owner: **artifacts + docs only** — no real VPS, no
+production rehearsal, no Docker build (no usable Docker daemon here).
+
+- [x] Deployment doc + files (`DEPLOYMENT.md`, `.env.example`, `deploy/Caddyfile`, `deploy/daftar.service`, `Dockerfile`, `.dockerignore`, `docker-compose.yml`).
+- [x] Fresh deploy, HTTPS, persistent volume — *documented, not rehearsed* (§8.1 deliverables are files; the live cutover is an owner task).
+- [x] Backup cron + restore drill — `scripts/backup.mjs` ran and produced an `integrity_check: ok` backup; the cron line and drill steps are in `DEPLOYMENT.md`.
+- [x] Manifest/icons verified — `/manifest.webmanifest` serves valid JSON, all four icons serve as `image/png`, `<link rel="manifest">` and `apple-touch-icon` are emitted (phone install itself needs a real device).
+- [x] Security headers verified (`nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` present; HSTS production-only).
+- [x] `tsc`, `eslint`, `next build` pass.
 
 ### Checkpoint 6 — Close
 
-- [ ] Update `README.md`: status line, Phase 1 checkboxes, Phase 2 section, new report routes, backup/restore instructions.
-- [ ] Update Settings copy (remove “قريبًا” badges that are now live).
-- [ ] Delete `prisma/test.db`, `prisma/test.db-*`, and test backups.
-- [ ] Re-run the full verification matrix.
-- [ ] Confirm `prisma/dev.db` still has the owner’s data and the original PIN.
+- [x] Update `README.md`: status line, Phase 1 checkboxes, Phase 2 section, new report routes, backup/restore instructions.
+- [x] Update Settings copy (no “قريبًا” badges remained; the install card was added).
+- [x] Delete `prisma/test.db`, `prisma/test.db-*`, and test backups.
+- [x] Re-run the full verification matrix.
+- [x] Confirm `prisma/dev.db` still has the owner’s data and the original PIN.
 
 ---
 
@@ -721,18 +739,19 @@ AUTH_SECRET=test-secret \
 
 ## 12. Open decisions
 
-Answer these before the related checkpoint. Defaults are recommendations.
+**Answered — all decisions are now settled:**
 
-| # | Decision | Recommendation | Default if no answer |
-|---|---|---|---|
-| 1 | Is sales automation (2D) in Phase 2? | Approve it only after 2A–2C; it is the highest-risk scope. | Defer to Phase 3, as README currently says. |
-| 2 | Shortfall policy for 2D | Block the sale; allow unlinked charges for exceptions. | Block. |
-| 3 | Deployment target | VPS + SQLite + Caddy + systemd. | VPS + SQLite. |
-| 4 | PWA depth | Installable manifest only; no service worker. | Manifest only. |
-| 5 | Week start for reports | Saturday (Egypt). | Saturday. |
-| 6 | PDF approach | Browser print → Save as PDF. | Browser print. |
-| 7 | Restore behavior | Hot swap with safety copy + CLI fallback. | Hot swap. |
-| 8 | Backup retention | 14 daily backups + last 10 pre-restore safety copies. | 14 / 10. |
+| # | Decision | Answer |
+|---|---|---|
+| 1 | Is sales automation (2D) in Phase 2? | **No — deferred to Phase 3** (owner choice). |
+| 2 | Shortfall policy for 2D | N/A until Phase 3; default remains “block the sale”. |
+| 3 | Deployment target | **VPS + SQLite + Caddy + systemd**, Docker as an alternative. |
+| 4 | PWA depth | **Installable manifest only; no service worker.** |
+| 5 | Week start for reports | **Saturday (Egypt).** |
+| 6 | PDF approach | **Browser print → Save as PDF.** |
+| 7 | Restore behavior | **Hot swap with safety copy + CLI fallback.** |
+| 8 | Backup retention | **14 daily backups + last 10 pre-restore safety copies.** |
+| 9 | 2E depth (added at execution) | **Artifacts + docs only** — no live VPS or production rehearsal in Phase 2. |
 
 ---
 

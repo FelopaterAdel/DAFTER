@@ -6,6 +6,8 @@ import { BackLink } from "@/components/layout/back-link";
 import { PageHeader } from "@/components/layout/page-header";
 import { ActionForm } from "@/components/forms/action-form";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit";
+import { PrintButton } from "@/components/reports/print-button";
+import { PrintHeader } from "@/components/reports/print-header";
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,7 +82,7 @@ export default async function CustodyPage({
   params: Promise<{ id: string }>;
   searchParams: SearchParams;
 }) {
-  await requireAuth();
+  const setting = await requireAuth();
 
   const { id } = await params;
   const query = await searchParams;
@@ -232,6 +234,12 @@ export default async function CustodyPage({
 
   return (
     <>
+      <PrintHeader
+        shopName={setting.shopName}
+        title={`كشف حساب العهدة — ${custody.name}`}
+        period={tabs.find((item) => item.active)?.label}
+      />
+
       <BackLink href="/custodies">كل العهد</BackLink>
 
       <PageHeader
@@ -264,6 +272,7 @@ export default async function CustodyPage({
               <ChartIcon className="size-4" />
               تقرير
             </Link>
+            <PrintButton label="طباعة" />
             <Link
               href={`/custodies/${id}/edit`}
               className={buttonStyles({ variant: "secondary", size: "sm" })}

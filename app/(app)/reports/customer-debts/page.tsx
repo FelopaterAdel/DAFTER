@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { PrintButton } from "@/components/reports/print-button";
+import { PrintHeader } from "@/components/reports/print-header";
 import { ReportNav } from "@/components/reports/report-nav";
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { UsersIcon, WalletIcon } from "@/components/ui/icons";
+import { DownloadIcon, UsersIcon, WalletIcon } from "@/components/ui/icons";
 import { Field, Input, Select } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -23,6 +25,7 @@ import { formatDate, isValidISODate, todayISO } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { getCustomerDebtReport } from "@/lib/queries/reports";
 import type { CustomerDebtType } from "@/lib/queries/reports";
+import { first, searchQueryString } from "@/lib/reports/params";
 
 export const metadata: Metadata = {
   title: "مديونيات الزبائن",
@@ -35,10 +38,6 @@ type SearchParams = Promise<{
   asOf?: string | string[];
 }>;
 
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
-}
-
 const typeOptions: Array<{ value: CustomerDebtType; label: string }> = [
   { value: "all", label: "كل الزبائن" },
   { value: "custody", label: "زبائن العهد" },
@@ -50,9 +49,10 @@ export default async function CustomerDebtsReportPage({
 }: {
   searchParams: SearchParams;
 }) {
-  await requireAuth();
+  const setting = await requireAuth();
 
   const params = await searchParams;
+  const query = searchQueryString(params);
   const type = typeOptions.some((option) => option.value === first(params.type))
     ? (first(params.type) as CustomerDebtType)
     : "all";
@@ -64,17 +64,33 @@ export default async function CustomerDebtsReportPage({
 
   return (
     <>
+      <PrintHeader
+        shopName={setting.shopName}
+        title="مديونيات الزبائن"
+        period={`حتى ${formatDate(asOf)}`}
+      />
+
       <PageHeader
         eyebrow="التقارير"
         title="مديونيات الزبائن"
         description="أرصدة الزبائن وأعمار الديون بالفيفو: أقدم استحقاق بيتسدد الأول."
         actions={
-          <Link
-            href="/reports"
-            className={buttonStyles({ variant: "secondary", size: "sm" })}
-          >
-            كل التقارير
-          </Link>
+          <>
+            <Link
+              href={`/api/export/customer-debts${query}`}
+              className={buttonStyles({ variant: "secondary", size: "sm" })}
+            >
+              <DownloadIcon className="size-4" />
+              تصدير CSV
+            </Link>
+            <PrintButton />
+            <Link
+              href="/reports"
+              className={buttonStyles({ variant: "ghost", size: "sm" })}
+            >
+              كل التقارير
+            </Link>
+          </>
         }
       />
 
@@ -119,7 +135,7 @@ export default async function CustomerDebtsReportPage({
         <CardContent className="pt-4">
           <form
             method="get"
-            className="mb-4 grid gap-3 rounded-xl bg-surface-muted/50 p-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
+            className="mb-4 grid gap-3 rounded-xl bg-surface-muted/50 p-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end print:hidden"
           >
             <Field label="نوع الزبون" htmlFor="customer-report-type">
               <Select

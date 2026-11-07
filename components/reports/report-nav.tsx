@@ -25,7 +25,7 @@ export function ReportNav({ active }: { active: ReportKey }) {
   return (
     <nav
       aria-label="التقارير"
-      className="mb-5 flex gap-2 overflow-x-auto pb-1"
+      className="mb-5 flex gap-2 overflow-x-auto pb-1 print:hidden"
     >
       {items.map((item) => (
         <Link

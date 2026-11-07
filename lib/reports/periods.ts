@@ -1,4 +1,4 @@
-import { isValidISODate, todayISO } from "@/lib/dates";
+import { formatDate, isValidISODate, todayISO } from "@/lib/dates";
 
 export type DateRange = {
   from: string;
@@ -57,6 +57,19 @@ export function monthKey(iso: string) {
 export function formatMonthLabel(key: string) {
   const [year, month] = key.split("-");
   return `${month}/${year}`;
+}
+
+/**
+ * Human label for a collections grouping key. The screen and the CSV export
+ * both call this, so a printed row and an exported row read identically.
+ */
+export function formatGroupLabel(
+  groupBy: "day" | "week" | "month",
+  key: string,
+) {
+  if (groupBy === "month") return `شهر ${formatMonthLabel(key)}`;
+  if (groupBy === "week") return `أسبوع ${formatDate(key)}`;
+  return formatDate(key);
 }
 
 /** Whole days from `from` to `to`, independent of the machine timezone. */

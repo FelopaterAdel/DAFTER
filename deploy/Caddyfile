@@ -1,0 +1,27 @@
+# Daftar behind Caddy — automatic HTTPS, HTTP → HTTPS redirect included.
+# Replace daftar.example.com with your real domain (A/AAAA record → server IP).
+
+daftar.example.com {
+	encode zstd gzip
+
+	# Next.js sets nosniff / X-Frame-Options / Referrer-Policy /
+	# Permissions-Policy itself; HSTS is added here so plain-HTTP responses
+	# (the redirect hop) are covered too.
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		-Server
+	}
+
+	# The app listens on loopback only; never expose it directly.
+	reverse_proxy 127.0.0.1:3000
+
+	# SQLite backups must never be reachable over HTTP — /prisma and /backups
+	# are outside the web root anyway, this is belt and braces.
+	@blocked path /prisma/* /backups/* /data/*
+	respond @blocked 404
+
+	log {
+		output file /var/log/caddy/daftar.log
+		format json
+	}
+}
