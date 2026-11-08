@@ -351,9 +351,11 @@ Net custody stock per item =
 
 ### 7.6 Customers `/customers`
 
-- Two tabs: **Custody customers** / **Direct customers**.
-- Filters: custody, country, search by name/phone.
-- Table: name, custody or country, balance, last payment.
+- Filters: search by name/phone, type (all / custody / direct), and a **country
+  dropdown** listing the countries that exist on customers; a “clear filters”
+  link appears while any filter is active.
+- Summary: visible customer count and total balances.
+- Table: name, type, phone/region, balance, actions (cards on mobile).
 - Add customer:
   - Custody customer: select a custody (required).
   - Direct customer: country/region name (required).

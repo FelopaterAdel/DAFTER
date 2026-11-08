@@ -29,6 +29,7 @@ export const instant = false;
 type SearchParams = Promise<{
   q?: string | string[];
   type?: string | string[];
+  country?: string | string[];
 }>;
 
 function first(value: string | string[] | undefined) {
@@ -47,28 +48,45 @@ export default async function CustomersPage({
   const type = ["custody", "direct", "all"].includes(first(params.type))
     ? first(params.type)
     : "all";
+  const country = first(params.country).trim();
 
-  const customers = await db.customer.findMany({
-    where: {
-      ...(type === "custody" ? { custodyId: { not: null } } : {}),
-      ...(type === "direct" ? { custodyId: null } : {}),
-      ...(q
-        ? {
-            OR: [
-              { name: { contains: q } },
-              { phone: { contains: q } },
-              { country: { contains: q } },
-            ],
-          }
-        : {}),
-    },
-    include: {
-      custody: { select: { id: true, name: true } },
-    },
-    orderBy: [{ createdAt: "desc" }],
-  });
+  const [customers, countryRows, balances] = await Promise.all([
+    db.customer.findMany({
+      where: {
+        ...(type === "custody" ? { custodyId: { not: null } } : {}),
+        ...(type === "direct" ? { custodyId: null } : {}),
+        ...(country
+          ? { country: { equals: country, mode: "insensitive" } }
+          : {}),
+        ...(q
+          ? {
+              OR: [
+                { name: { contains: q } },
+                { phone: { contains: q } },
+                { country: { contains: q } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        custody: { select: { id: true, name: true } },
+      },
+      orderBy: [{ createdAt: "desc" }],
+    }),
+    db.customer.findMany({
+      where: { country: { not: null } },
+      select: { country: true },
+      distinct: ["country"],
+      orderBy: { country: "asc" },
+    }),
+    getCustomerBalanceMap(),
+  ]);
 
-  const balances = await getCustomerBalanceMap();
+  const countries = countryRows
+    .map((row) => row.country)
+    .filter((value): value is string => Boolean(value));
+  const hasFilters = Boolean(q || country || type !== "all");
+
   const total = customers.reduce(
     (sum, customer) => sum + (balances.get(customer.id) ?? 0),
     0,
@@ -90,18 +108,31 @@ export default async function CustomersPage({
 
       <form
         method="get"
-        className="mb-5 grid gap-3 rounded-2xl border border-line bg-surface p-3 shadow-card sm:grid-cols-[minmax(0,1fr)_170px_auto] sm:items-center"
+        className="mb-5 grid gap-3 rounded-2xl border border-line bg-surface p-3 shadow-card sm:grid-cols-[minmax(0,1fr)_160px_160px_auto] sm:items-center"
       >
         <Input
           name="q"
           defaultValue={q}
-          placeholder="ابحث بالاسم أو الهاتف أو البلد…"
+          placeholder="ابحث بالاسم أو الهاتف…"
           aria-label="بحث في الزبائن"
         />
         <Select name="type" defaultValue={type} aria-label="نوع الزبون">
           <option value="all">كل الزبائن</option>
           <option value="custody">زبائن العهد</option>
           <option value="direct">زبائن مباشرين</option>
+        </Select>
+        <Select
+          name="country"
+          defaultValue={country}
+          aria-label="فلتر البلد"
+          disabled={countries.length === 0}
+        >
+          <option value="">كل البلدان</option>
+          {countries.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
         </Select>
         <button type="submit" className={buttonStyles({ variant: "secondary" })}>
           بحث
@@ -112,6 +143,18 @@ export default async function CustomersPage({
         <p>
           <span className="font-bold text-ink">{customers.length}</span> زبون
           ظاهر
+          {hasFilters ? (
+            <>
+              {" "}
+              ·{" "}
+              <Link
+                href="/customers"
+                className="font-bold text-brand hover:underline"
+              >
+                مسح الفلاتر
+              </Link>
+            </>
+          ) : null}
         </p>
         <p>
           إجمالي الأرصدة:{" "}
@@ -122,10 +165,10 @@ export default async function CustomersPage({
       {customers.length === 0 ? (
         <EmptyState
           icon={UsersIcon}
-          title={q ? "مفيش نتائج للبحث" : "مفيش زبائن لسه"}
+          title={hasFilters ? "مفيش نتائج للبحث" : "مفيش زبائن لسه"}
           description={
-            q
-              ? "جرّب اسم أو رقم تاني، أو غيّر فلتر النوع."
+            hasFilters
+              ? "جرّب اسم أو رقم تاني، أو غيّر الفلاتر (النوع / البلد)."
               : "أضف زبون عهدة أو زبون مباشر، وسجّل استحقاقاته ومدفوعاته."
           }
           action={
