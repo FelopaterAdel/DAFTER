@@ -28,6 +28,7 @@ function revalidateInvoicePaths() {
   revalidatePath("/");
   revalidatePath("/invoices");
   revalidatePath("/warehouse");
+  revalidatePath("/goods");
   revalidatePath("/customers");
   revalidatePath("/reports/warehouse");
   revalidatePath("/reports/customer-debts");

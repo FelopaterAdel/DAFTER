@@ -13,6 +13,7 @@ import {
   LedgerIcon,
   LogoutIcon,
   SettingsIcon,
+  TagIcon,
   UsersIcon,
   WalletIcon,
 } from "@/components/ui/icons";
@@ -23,6 +24,7 @@ const primaryItems = [
   { href: "/customers", label: "الزبائن", icon: UsersIcon },
   { href: "/collections", label: "التحصيل", icon: WalletIcon },
   { href: "/warehouse", label: "المخزن", icon: BoxIcon },
+  { href: "/goods", label: "البضائع", icon: TagIcon },
   { href: "/reports", label: "التقارير", icon: ChartIcon },
 ];
 
@@ -179,7 +181,7 @@ export function MobileBottomNav() {
       aria-label="التنقل السفلي"
       className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line/80 bg-surface/95 px-2 pt-1.5 backdrop-blur lg:hidden print:hidden"
     >
-      <div className="mx-auto grid max-w-md grid-cols-6">
+      <div className="mx-auto grid max-w-md grid-cols-7">
         {primaryItems.map((item) => {
           const active = isActive(pathname, item.href);
           const Icon = item.icon;

@@ -73,6 +73,15 @@ export function BoxIcon(props: IconProps) {
   );
 }
 
+export function TagIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4.6 11.4V5.6A1.1 1.1 0 0 1 5.7 4.5h5.8c.3 0 .59.12.81.33l6.27 6.27a1.15 1.15 0 0 1 0 1.63l-5.24 5.24a1.15 1.15 0 0 1-1.63 0L4.93 12.21A1.1 1.1 0 0 1 4.6 11.4Z" />
+      <circle cx="8.7" cy="8.7" r="1.35" />
+    </Icon>
+  );
+}
+
 export function SettingsIcon(props: IconProps) {
   return (
     <Icon {...props}>

@@ -328,7 +328,7 @@ Net custody stock per item =
 - Last 5 collections.
 - Top 5 custodies by debt.
 - Low-stock products.
-- Quick actions: “New collection”, “New custody”, “New customer”, “New product”.
+- Quick actions: “New collection”, “New custody”, “New customer”, “New product”, “Goods catalog”.
 
 ### 7.4 Custodies `/custodies`
 
@@ -407,7 +407,22 @@ Net custody stock per item =
 - Filters: product, type, period.
 - Table: date, product, type, quantity, price, note.
 
-### 7.10 Settings `/settings`
+### 7.10 Goods catalog `/goods`
+
+- Every active product name with its unit, cost price and sale price, plus the
+  quantity currently in the warehouse.
+- Search by name.
+- Summary: product count, total quantity, value at cost.
+- Per product, two quick actions that open an inline form:
+  - **Deliver to a custody** — custody picker, quantity, unit price (defaults to
+    the sale price), date, note. Uses the same custody delivery flow, so the
+    custody stock and balance update immediately.
+  - **Stock into the warehouse** — quantity, unit price (defaults to the cost
+    price), date, note. Records an `IN` movement for that product.
+- Empty state when there are no products (or no search results) and a hint when
+  there is no active custody yet.
+
+### 7.11 Settings `/settings`
 
 - Shop name and account info.
 - Change PIN (after entering the old one) — signs other devices out.
@@ -508,6 +523,7 @@ app/
       page.tsx
       [id]/page.tsx
     collections/page.tsx
+    goods/page.tsx
     warehouse/page.tsx
     settings/page.tsx
   layout.tsx                ← RTL + font + colors
@@ -525,6 +541,7 @@ components/
   layout/                   ← navigation, header
   forms/                    ← custody/customer/collection forms
   collections/              ← merged custody/direct collection form
+  goods/                    ← goods catalog with quick deliver/stock-in forms
 prisma/
   schema.prisma
   dev.db                    ← gitignored

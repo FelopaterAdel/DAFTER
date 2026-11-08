@@ -23,6 +23,7 @@ const NAME_MAX = 80;
 function revalidateWarehousePaths(productId?: string) {
   revalidatePath("/");
   revalidatePath("/warehouse");
+  revalidatePath("/goods");
   if (productId) revalidatePath(`/warehouse/${productId}`);
 }
 

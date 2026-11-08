@@ -24,6 +24,7 @@ function custodyPaths(custodyId: string) {
   revalidatePath("/custodies");
   revalidatePath(`/custodies/${custodyId}`);
   revalidatePath("/warehouse");
+  revalidatePath("/goods");
 }
 
 export async function createCustodyAction(

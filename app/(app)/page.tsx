@@ -15,6 +15,7 @@ import {
   ChartIcon,
   ClockIcon,
   PlusIcon,
+  TagIcon,
   UsersIcon,
   WalletIcon,
 } from "@/components/ui/icons";
@@ -61,6 +62,12 @@ const quickLinks: QuickLink[] = [
     label: "أضف منتج",
     description: "صنف جديد في مخزنك",
     icon: BoxIcon,
+  },
+  {
+    href: "/goods",
+    label: "البضائع",
+    description: "كل الأسماء بأسعارها وتوريد سريع",
+    icon: TagIcon,
   },
   {
     href: "/reports",
