@@ -129,6 +129,7 @@ async function buildCsv(
       ...data.debtors.map((custody) => [
         custody.name,
         custody.phone ?? "",
+        custody.country ?? "",
         statusLabel(custody.isActive),
         "مدينة",
         csvAmount(custody.balanceCents),
@@ -136,12 +137,14 @@ async function buildCsv(
       ...data.credits.map((custody) => [
         custody.name,
         custody.phone ?? "",
+        custody.country ?? "",
         statusLabel(custody.isActive),
         "دائنة",
         csvAmount(-custody.balanceCents),
       ]),
       [
         "الإجمالي",
+        "",
         "",
         "",
         "إجمالي المستحق",
@@ -151,15 +154,16 @@ async function buildCsv(
         "الإجمالي",
         "",
         "",
+        "",
         "إجمالي الدائن",
         csvAmount(data.totals.creditCents),
       ],
-      ["الصافي", "", "", "", csvAmount(data.totals.netCents)],
+      ["الصافي", "", "", "", "", csvAmount(data.totals.netCents)],
     ];
 
     return {
       body: toCsv(
-        ["العهدة", "الهاتف", "الحالة", "نوع الرصيد", "المبلغ (جنيه)"],
+        ["العهدة", "الهاتف", "البلد", "الحالة", "نوع الرصيد", "المبلغ (جنيه)"],
         rows,
       ),
     };

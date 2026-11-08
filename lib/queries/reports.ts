@@ -118,6 +118,7 @@ export type CustodyDebtRow = {
   id: string;
   name: string;
   phone: string | null;
+  country: string | null;
   isActive: boolean;
   balanceCents: number;
 };
@@ -137,7 +138,7 @@ export async function getCustodyDebtReport(): Promise<CustodyDebtReport> {
   const [balances, custodies] = await Promise.all([
     getCustodyBalanceMap(),
     db.custody.findMany({
-      select: { id: true, name: true, phone: true, isActive: true },
+      select: { id: true, name: true, phone: true, country: true, isActive: true },
       orderBy: { name: "asc" },
     }),
   ]);

@@ -17,6 +17,7 @@ import {
 } from "@/lib/validation";
 
 const CUSTODY_NAME_MAX = 80;
+const COUNTRY_MAX = 80;
 
 function custodyPaths(custodyId: string) {
   revalidatePath("/");
@@ -33,10 +34,14 @@ export async function createCustodyAction(
 
   const name = readString(formData, "name");
   const phone = readOptionalString(formData, "phone");
+  const country = readOptionalString(formData, "country");
   const note = readOptionalString(formData, "note");
 
   if (name.length < 2) return { error: "اكتب اسم العهدة (حرفين على الأقل)." };
   if (name.length > CUSTODY_NAME_MAX) return { error: "اسم العهدة طويل جدًا." };
+  if (country && country.length > COUNTRY_MAX) {
+    return { error: "اسم البلد أو المنطقة طويل جدًا." };
+  }
 
   const existing = await db.custody.findUnique({ where: { name } });
   if (existing) return { error: "فيه عهدة بنفس الاسم بالفعل." };
@@ -44,7 +49,7 @@ export async function createCustodyAction(
   // No opening balance for a custody: its account is computed from its stock
   // and its customers (see computeCustodyBalance).
   const custody = await db.custody.create({
-    data: { name, phone, note },
+    data: { name, phone, country, note },
   });
 
   custodyPaths(custody.id);
@@ -60,11 +65,15 @@ export async function updateCustodyAction(
   const id = readString(formData, "id");
   const name = readString(formData, "name");
   const phone = readOptionalString(formData, "phone");
+  const country = readOptionalString(formData, "country");
   const note = readOptionalString(formData, "note");
 
   if (!id) return { error: "العهدة مش موجودة." };
   if (name.length < 2) return { error: "اكتب اسم العهدة (حرفين على الأقل)." };
   if (name.length > CUSTODY_NAME_MAX) return { error: "اسم العهدة طويل جدًا." };
+  if (country && country.length > COUNTRY_MAX) {
+    return { error: "اسم البلد أو المنطقة طويل جدًا." };
+  }
 
   const custody = await db.custody.findUnique({ where: { id } });
   if (!custody) return { error: "العهدة مش موجودة." };
@@ -76,7 +85,7 @@ export async function updateCustodyAction(
 
   await db.custody.update({
     where: { id },
-    data: { name, phone, note },
+    data: { name, phone, country, note },
   });
 
   custodyPaths(id);

@@ -73,6 +73,14 @@ export default async function EditCustodyPage({
                 />
               </Field>
 
+              <Field label="البلد / المنطقة" htmlFor="country" hint="اختياري">
+                <Input
+                  id="country"
+                  name="country"
+                  defaultValue={custody.country ?? ""}
+                />
+              </Field>
+
               <Field label="ملاحظات" htmlFor="note" className="sm:col-span-2">
                 <Textarea
                   id="note"

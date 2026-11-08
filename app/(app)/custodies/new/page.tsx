@@ -24,7 +24,7 @@ export default async function NewCustodyPage() {
       <PageHeader
         eyebrow="عهدة جديدة"
         title="افتح عهدة لسيلر"
-        description="اسم العهدة بس، وبعدها تقدر تضيف البضاعة والزبائن."
+        description="اسم العهدة والبلد وبس، وبعدها تقدر تضيف البضاعة والزبائن."
       />
 
       <Card>
@@ -58,6 +58,14 @@ export default async function NewCustodyPage() {
                   name="phone"
                   inputMode="tel"
                   placeholder="01xxxxxxxxx"
+                />
+              </Field>
+
+              <Field label="البلد / المنطقة" htmlFor="country" hint="اختياري">
+                <Input
+                  id="country"
+                  name="country"
+                  placeholder="مثال: الجيزة، أسيوط، الإسكندرية"
                 />
               </Field>
 

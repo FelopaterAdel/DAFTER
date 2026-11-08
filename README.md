@@ -133,6 +133,7 @@ Product 1 ──< StockMovement
 | `id` | String (cuid) | — |
 | `name` | String | Unique, required |
 | `phone` | String? | Optional |
+| `country` | String? | Optional country/region of the seller |
 | `note` | String? | General note |
 | `openingBalanceCents` | Int | Legacy (default 0) — ignored; a custody has no opening balance |
 | `isActive` | Boolean | Default true |
@@ -331,15 +332,15 @@ Net custody stock per item =
 
 ### 7.4 Custodies `/custodies`
 
-- Search by name/phone.
+- Search by name/phone/country.
 - Filter: active / inactive / all.
-- Table: name, phone, customer count, balance, status, actions.
+- Table: name, phone/country, customer count, balance, status, actions.
 - On mobile: cards instead of a table.
-- “New custody” opens a form (name, phone, note).
+- “New custody” opens a form (name, phone, country, note).
 
 ### 7.5 Custody details `/custodies/[id]`
 
-**Header:** name, phone, status, current balance, actions (collect, return, edit, deactivate).
+**Header:** name, phone/country, current balance, actions (collect, return, edit, deactivate). The status badge lives in the custody list.
 
 **Tabs:**
 

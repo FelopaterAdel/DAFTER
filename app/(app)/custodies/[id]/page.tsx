@@ -360,9 +360,12 @@ export default async function CustodyPage({
         eyebrow="تفاصيل العهدة"
         title={custody.name}
         description={
-          custody.phone
-            ? `هاتف: ${custody.phone}`
-            : "عهدة بدون رقم هاتف مسجّل."
+          [
+            custody.phone ? `هاتف: ${custody.phone}` : null,
+            custody.country ? `بلد: ${custody.country}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ") || "عهدة بدون رقم هاتف أو بلد مسجّل."
         }
         actions={
           <>
@@ -410,7 +413,7 @@ export default async function CustodyPage({
         }
       />
 
-      <section className="mb-5 grid gap-3 sm:grid-cols-3">
+      <section className="mb-5 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-line bg-brand p-5 text-white shadow-card">
           <p className="text-xs font-semibold text-white/70">رصيد العهدة</p>
           <p className="mt-1.5 text-2xl font-extrabold">
@@ -426,18 +429,6 @@ export default async function CustodyPage({
           <p className="mt-0.5 text-[11px] text-white/55">
             بضاعة {formatMoney(stockValueCents)} · زبائن{" "}
             {formatMoney(customerExposureCents)}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-card">
-          <p className="text-xs font-semibold text-muted">حالة العهدة</p>
-          <div className="mt-2">
-            <Badge tone={custody.isActive ? "success" : "neutral"}>
-              {custody.isActive ? "نشطة" : "موقوفة"}
-            </Badge>
-          </div>
-          <p className="mt-2 text-[11px] leading-5 text-muted">
-            بدأت في {formatDate(todayISO(custody.createdAt))}
           </p>
         </div>
 

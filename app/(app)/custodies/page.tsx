@@ -54,7 +54,11 @@ export default async function CustodiesPage({
       ...(status === "inactive" ? { isActive: false } : {}),
       ...(q
         ? {
-            OR: [{ name: { contains: q } }, { phone: { contains: q } }],
+            OR: [
+              { name: { contains: q } },
+              { phone: { contains: q } },
+              { country: { contains: q } },
+            ],
           }
         : {}),
     },
@@ -91,7 +95,7 @@ export default async function CustodiesPage({
         <Input
           name="q"
           defaultValue={q}
-          placeholder="ابحث بالاسم أو الهاتف…"
+          placeholder="ابحث بالاسم أو الهاتف أو البلد…"
           aria-label="بحث في العهد"
         />
         <Select name="status" defaultValue={status} aria-label="حالة العهدة">
@@ -149,7 +153,9 @@ export default async function CustodiesPage({
                         {custody.name}
                       </p>
                       <p className="mt-1 text-xs text-muted">
-                        {custody.phone || "من غير رقم هاتف"}
+                        {[custody.phone, custody.country]
+                          .filter(Boolean)
+                          .join(" · ") || "من غير رقم هاتف"}
                       </p>
                     </div>
                     <Badge tone={custody.isActive ? "success" : "neutral"}>
@@ -199,7 +205,9 @@ export default async function CustodiesPage({
                         </Link>
                       </TableCell>
                       <TableCell className="text-muted">
-                        {custody.phone || "—"}
+                        {[custody.phone, custody.country]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
                       </TableCell>
                       <TableCell className="text-muted">
                         {custody._count.customers}

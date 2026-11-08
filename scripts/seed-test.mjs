@@ -63,12 +63,13 @@ db.prepare(
 
 db.prepare(
   `INSERT INTO Custody
-    (id, name, phone, note, openingBalanceCents, isActive, createdAt, updatedAt)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    (id, name, phone, country, note, openingBalanceCents, isActive, createdAt, updatedAt)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 ).run(
   "test-custody",
   "عهدة تجريبية",
   "01000000000",
+  "القاهرة",
   "بيانات اختبار",
   100000,
   1,

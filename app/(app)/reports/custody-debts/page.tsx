@@ -120,6 +120,7 @@ export default async function CustodyDebtsReportPage() {
                 <TableRow>
                   <TableHeaderCell>العهدة</TableHeaderCell>
                   <TableHeaderCell>الهاتف</TableHeaderCell>
+                  <TableHeaderCell>البلد</TableHeaderCell>
                   <TableHeaderCell>الحالة</TableHeaderCell>
                   <TableHeaderCell>الرصيد</TableHeaderCell>
                 </TableRow>
@@ -138,6 +139,9 @@ export default async function CustodyDebtsReportPage() {
                     <TableCell className="whitespace-nowrap text-muted" dir="ltr">
                       {custody.phone || "—"}
                     </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted">
+                      {custody.country || "—"}
+                    </TableCell>
                     <TableCell>
                       <Badge tone={custody.isActive ? "success" : "neutral"}>
                         {custody.isActive ? "نشطة" : "موقوفة"}
@@ -149,7 +153,7 @@ export default async function CustodyDebtsReportPage() {
                   </TableRow>
                 ))}
                 <TableRow className="bg-surface-muted/50 hover:bg-surface-muted/50">
-                  <TableCell className="font-extrabold text-ink" colSpan={3}>
+                  <TableCell className="font-extrabold text-ink" colSpan={4}>
                     الإجمالي
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-extrabold text-brand-dark">
@@ -180,6 +184,7 @@ export default async function CustodyDebtsReportPage() {
                 <TableRow>
                   <TableHeaderCell>العهدة</TableHeaderCell>
                   <TableHeaderCell>الهاتف</TableHeaderCell>
+                  <TableHeaderCell>البلد</TableHeaderCell>
                   <TableHeaderCell>الحالة</TableHeaderCell>
                   <TableHeaderCell>المبلغ الدائن</TableHeaderCell>
                 </TableRow>
@@ -198,6 +203,9 @@ export default async function CustodyDebtsReportPage() {
                     <TableCell className="whitespace-nowrap text-muted" dir="ltr">
                       {custody.phone || "—"}
                     </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted">
+                      {custody.country || "—"}
+                    </TableCell>
                     <TableCell>
                       <Badge tone={custody.isActive ? "success" : "neutral"}>
                         {custody.isActive ? "نشطة" : "موقوفة"}
@@ -209,7 +217,7 @@ export default async function CustodyDebtsReportPage() {
                   </TableRow>
                 ))}
                 <TableRow className="bg-surface-muted/50 hover:bg-surface-muted/50">
-                  <TableCell className="font-extrabold text-ink" colSpan={3}>
+                  <TableCell className="font-extrabold text-ink" colSpan={4}>
                     الإجمالي
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-extrabold text-gold">

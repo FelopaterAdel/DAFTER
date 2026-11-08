@@ -29,6 +29,7 @@ model Custody {
   id                  String        @id @default(cuid())
   name                String        @unique
   phone               String?
+  country             String?
   note                String?
   openingBalanceCents Int           @default(0)
   isActive            Boolean       @default(true)
@@ -41,6 +42,7 @@ model Custody {
   payments  Payment[]
 
   @@index([isActive])
+  @@index([country])
 }
 
 enum CustodyItemType {
