@@ -362,8 +362,12 @@ Net custody stock per item =
 
 ### 7.7 Customer details `/customers/[id]`
 
-- Current balance card + customer info.
-- Movements table (charges + payments) with a running balance.
+- Summary at the top: **total ever owed** (opening balance + charges), **total
+  collected**, and **what is still owed** — the three tie out: owed − collected
+  = remaining.
+- Customer info card (type, phone, country, date, note).
+- Movements table (opening balance row when set + charges + payments) with a
+  running balance that ends on the current balance.
 - “Add charge” (amount + date + note).
 - “Record payment” (amount + date + note).
 - The payment hint changes by type:

@@ -44,6 +44,14 @@ export const instant = false;
 
 type LedgerEntry =
   | {
+      kind: "opening";
+      id: string;
+      date: string;
+      createdAt: Date;
+      amountCents: number;
+      note: string | null;
+    }
+  | {
       kind: "charge";
       id: string;
       date: string;
@@ -79,7 +87,10 @@ export default async function CustomerPage({
 
   if (!customer) notFound();
 
+  // Includes the opening balance so this page matches the customers list,
+  // the customer-debts report and the custody balance.
   const balance = computeCustomerBalance({
+    openingBalanceCents: customer.openingBalanceCents,
     charges: customer.charges,
     payments: customer.payments,
   });
@@ -87,7 +98,22 @@ export default async function CustomerPage({
   const isCustodyCustomer = customer.custody !== null;
   const redirectTo = `/customers/${customer.id}`;
 
+  const openingEntry: LedgerEntry[] =
+    customer.openingBalanceCents !== 0
+      ? [
+          {
+            kind: "opening",
+            id: "opening",
+            date: todayISO(customer.createdAt),
+            createdAt: customer.createdAt,
+            amountCents: customer.openingBalanceCents,
+            note: null,
+          },
+        ]
+      : [];
+
   const entries: LedgerEntry[] = [
+    ...openingEntry,
     ...customer.charges.map((charge) => ({
       kind: "charge" as const,
       id: charge.id,
@@ -105,6 +131,12 @@ export default async function CustomerPage({
       note: payment.note,
     })),
   ].sort((a, b) => {
+    // The opening balance always leads the statement, even when a movement is
+    // backdated before the customer was created.
+    if (a.kind === "opening" || b.kind === "opening") {
+      if (a.kind === b.kind) return 0;
+      return a.kind === "opening" ? -1 : 1;
+    }
     if (a.date !== b.date) return a.date.localeCompare(b.date);
     return a.createdAt.getTime() - b.createdAt.getTime();
   });
@@ -113,7 +145,7 @@ export default async function CustomerPage({
     Array<LedgerEntry & { balance: number }>
   >((rows, entry) => {
     const previous = rows.length > 0 ? rows[rows.length - 1]!.balance : 0;
-    const effect = entry.kind === "charge" ? entry.amountCents : -entry.amountCents;
+    const effect = entry.kind === "payment" ? -entry.amountCents : entry.amountCents;
     rows.push({ ...entry, balance: previous + effect });
     return rows;
   }, []);
@@ -126,6 +158,9 @@ export default async function CustomerPage({
     (sum, payment) => sum + payment.amountCents,
     0,
   );
+  // Everything ever owed: opening balance + charges. Opening + charges −
+  // payments is exactly the remaining balance shown below.
+  const totalOnCustomer = customer.openingBalanceCents + totalCharges;
 
   return (
     <>
@@ -174,37 +209,48 @@ export default async function CustomerPage({
       />
 
       <section className="mb-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-line bg-brand p-5 text-white shadow-card">
-          <p className="text-xs font-semibold text-white/70">الرصيد الحالي</p>
-          <p className="mt-1.5 text-2xl font-extrabold">{formatMoney(balance)}</p>
-          <p className="mt-1 text-[11px] text-white/60">
-            {isCustodyCustomer
-              ? "مستحق للزبون على السيلر"
-              : balance > 0
-                ? "مستحق ليك على الزبون"
-                : balance < 0
-                  ? "دفع زيادة عن المطلوب"
-                  : "الحساب متساوي"}
+        <div className="rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5">
+          <p className="text-xs font-semibold text-muted">
+            المبلغ الكلي اللي على الزبون
           </p>
-        </div>
-
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-card">
-          <p className="text-xs font-semibold text-muted">إجمالي الاستحقاقات</p>
-          <p className="mt-1.5 text-xl font-extrabold text-ink">
-            {formatMoney(totalCharges)}
+          <p className="mt-1.5 text-xl font-extrabold tabular-nums text-ink sm:text-2xl">
+            {formatMoney(totalOnCustomer)}
           </p>
           <p className="mt-1 text-[11px] text-muted">
-            {customer.charges.length} حركة
+            {customer.charges.length} استحقاق
+            {customer.openingBalanceCents !== 0
+              ? ` · افتتاحي ${formatMoney(customer.openingBalanceCents)}`
+              : ""}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-card">
-          <p className="text-xs font-semibold text-muted">إجمالي المدفوع</p>
-          <p className="mt-1.5 text-xl font-extrabold text-success">
+        <div className="rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5">
+          <p className="text-xs font-semibold text-muted">
+            المبلغ الكلي المحصل منه
+          </p>
+          <p className="mt-1.5 text-xl font-extrabold tabular-nums text-success sm:text-2xl">
             {formatMoney(totalPayments)}
           </p>
           <p className="mt-1 text-[11px] text-muted">
             {customer.payments.length} دفعة
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-line bg-brand p-4 text-white shadow-card sm:p-5">
+          <p className="text-xs font-semibold text-white/70">
+            الباقي عليه لسه
+          </p>
+          <p className="mt-1.5 text-xl font-extrabold tabular-nums sm:text-2xl">
+            {formatMoney(balance)}
+          </p>
+          <p className="mt-1 text-[11px] text-white/60">
+            {isCustodyCustomer
+              ? "مستحق على الزبون للسيـلر"
+              : balance > 0
+                ? "مستحق ليك عليه"
+                : balance < 0
+                  ? "دفع زيادة عن المطلوب"
+                  : "الحساب متساوي"}
           </p>
         </div>
       </section>
@@ -402,14 +448,20 @@ export default async function CustomerPage({
                     </TableCell>
                     <TableCell>
                       <p className="font-semibold text-ink">
-                        {entry.kind === "charge" ? "استحقاق" : "دفعة"}
+                        {entry.kind === "charge"
+                          ? "استحقاق"
+                          : entry.kind === "payment"
+                            ? "دفعة"
+                            : "رصيد افتتاحي"}
                       </p>
                       <p className="mt-0.5 text-[11px] leading-5 text-muted">
-                        {entry.note || "بدون بيان"}
+                        {entry.kind === "opening"
+                          ? "بداية الحساب"
+                          : entry.note || "بدون بيان"}
                       </p>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-danger">
-                      {entry.kind === "charge"
+                      {entry.kind !== "payment"
                         ? formatMoney(entry.amountCents)
                         : "—"}
                     </TableCell>
@@ -422,29 +474,31 @@ export default async function CustomerPage({
                       {formatMoney(entry.balance)}
                     </TableCell>
                     <TableCell>
-                      <form
-                        action={
-                          entry.kind === "charge"
-                            ? deleteChargeAction
-                            : deletePaymentAction
-                        }
-                      >
-                        <input type="hidden" name="id" value={entry.id} />
-                        <input
-                          type="hidden"
-                          name="redirectTo"
-                          value={redirectTo}
-                        />
-                        <ConfirmSubmitButton
-                          message={
+                      {entry.kind === "opening" ? null : (
+                        <form
+                          action={
                             entry.kind === "charge"
-                              ? "حذف الاستحقاق؟ رصيد الزبون هيتعدّل."
-                              : "حذف الدفعة؟ رصيد الزبون هيتعدّل."
+                              ? deleteChargeAction
+                              : deletePaymentAction
                           }
                         >
-                          حذف
-                        </ConfirmSubmitButton>
-                      </form>
+                          <input type="hidden" name="id" value={entry.id} />
+                          <input
+                            type="hidden"
+                            name="redirectTo"
+                            value={redirectTo}
+                          />
+                          <ConfirmSubmitButton
+                            message={
+                              entry.kind === "charge"
+                                ? "حذف الاستحقاق؟ رصيد الزبون هيتعدّل."
+                                : "حذف الدفعة؟ رصيد الزبون هيتعدّل."
+                            }
+                          >
+                            حذف
+                          </ConfirmSubmitButton>
+                        </form>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
