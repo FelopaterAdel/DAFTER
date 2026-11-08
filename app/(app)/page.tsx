@@ -113,7 +113,7 @@ export default async function DashboardPage() {
               <WalletIcon className="size-3.5" />
               إجمالي المستحق ليك
             </span>
-            <p className="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl">
+            <p className="mt-4 break-words text-3xl font-extrabold tracking-tight tabular-nums sm:text-4xl lg:text-5xl">
               {formatMoney(snapshot.totalReceivableCents)}
             </p>
             <p className="mt-3 text-sm leading-7 text-white/75">
@@ -178,9 +178,15 @@ export default async function DashboardPage() {
         <StatCard
           label="كاش اليوم"
           value={formatMoney(snapshot.todayCashCents)}
-          hint={`${snapshot.paymentsToday} حركة · عهد ${formatMoney(
-            snapshot.custodyCashTodayCents,
-          )} · مباشر ${formatMoney(snapshot.directCashTodayCents)}`}
+          hint={
+            <>
+              {snapshot.paymentsToday} حركة
+              <span className="hidden sm:inline">
+                {" "}· عهد {formatMoney(snapshot.custodyCashTodayCents)} · مباشر{" "}
+                {formatMoney(snapshot.directCashTodayCents)}
+              </span>
+            </>
+          }
           icon={WalletIcon}
           tone="brand"
         />
