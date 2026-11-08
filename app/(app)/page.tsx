@@ -121,7 +121,7 @@ export default async function DashboardPage() {
               {formatMoney(snapshot.directDebtCents)}
             </p>
             <p className="mt-1 text-[11px] leading-5 text-white/55">
-              مستحقات زبائن العهد عند السيلر (للمعلومة):{" "}
+              منه مديونية زبائن العهد عند السيلر:{" "}
               {formatMoney(snapshot.custodyCustomersDebtCents)}
             </p>
           </div>

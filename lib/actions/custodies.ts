@@ -34,20 +34,17 @@ export async function createCustodyAction(
   const name = readString(formData, "name");
   const phone = readOptionalString(formData, "phone");
   const note = readOptionalString(formData, "note");
-  const openingRaw = readString(formData, "openingBalance");
-  const openingBalanceCents = openingRaw ? readMoney(formData, "openingBalance") : 0;
 
   if (name.length < 2) return { error: "اكتب اسم العهدة (حرفين على الأقل)." };
   if (name.length > CUSTODY_NAME_MAX) return { error: "اسم العهدة طويل جدًا." };
-  if (openingBalanceCents === null || openingBalanceCents < 0) {
-    return { error: "الرصيد الافتتاحي لازم يكون صفر أو أكبر." };
-  }
 
   const existing = await db.custody.findUnique({ where: { name } });
   if (existing) return { error: "فيه عهدة بنفس الاسم بالفعل." };
 
+  // No opening balance for a custody: its account is computed from its stock
+  // and its customers (see computeCustodyBalance).
   const custody = await db.custody.create({
-    data: { name, phone, note, openingBalanceCents },
+    data: { name, phone, note },
   });
 
   custodyPaths(custody.id);
@@ -64,14 +61,10 @@ export async function updateCustodyAction(
   const name = readString(formData, "name");
   const phone = readOptionalString(formData, "phone");
   const note = readOptionalString(formData, "note");
-  const openingBalanceCents = readMoney(formData, "openingBalance");
 
   if (!id) return { error: "العهدة مش موجودة." };
   if (name.length < 2) return { error: "اكتب اسم العهدة (حرفين على الأقل)." };
   if (name.length > CUSTODY_NAME_MAX) return { error: "اسم العهدة طويل جدًا." };
-  if (openingBalanceCents === null || openingBalanceCents < 0) {
-    return { error: "الرصيد الافتتاحي لازم يكون صفر أو أكبر." };
-  }
 
   const custody = await db.custody.findUnique({ where: { id } });
   if (!custody) return { error: "العهدة مش موجودة." };
@@ -83,7 +76,7 @@ export async function updateCustodyAction(
 
   await db.custody.update({
     where: { id },
-    data: { name, phone, note, openingBalanceCents },
+    data: { name, phone, note },
   });
 
   custodyPaths(id);

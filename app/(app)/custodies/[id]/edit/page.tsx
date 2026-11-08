@@ -9,7 +9,6 @@ import { Field, Input, Textarea } from "@/components/ui/input";
 import { updateCustodyAction } from "@/lib/actions/custodies";
 import { requireAuth } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
-import { centsToInput } from "@/lib/money";
 
 export const metadata: Metadata = {
   title: "تعديل العهدة",
@@ -35,7 +34,7 @@ export default async function EditCustodyPage({
       <PageHeader
         eyebrow="تعديل العهدة"
         title={custody.name}
-        description="عدّل بيانات العهدة أو رصيدها الافتتاحي."
+        description="عدّل بيانات العهدة."
       />
 
       <Card>
@@ -71,19 +70,6 @@ export default async function EditCustodyPage({
                   name="phone"
                   inputMode="tel"
                   defaultValue={custody.phone ?? ""}
-                />
-              </Field>
-
-              <Field
-                label="الرصيد الافتتاحي (جنيه)"
-                htmlFor="openingBalance"
-                hint="تغييره هيعدّل الرصيد الحالي."
-              >
-                <Input
-                  id="openingBalance"
-                  name="openingBalance"
-                  inputMode="decimal"
-                  defaultValue={centsToInput(custody.openingBalanceCents)}
                 />
               </Field>
 

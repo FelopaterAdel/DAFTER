@@ -40,36 +40,70 @@ export function itemValue(item: CustodyItemLite) {
   return item.quantity * item.unitPriceCents;
 }
 
+/** What a custody's customers add up to: what they owe + what they paid the seller. */
+export type CustodyCustomerTotals = {
+  balanceCents: number;
+  collectedCents: number;
+};
+
+const NO_CUSTOMERS: CustodyCustomerTotals = {
+  balanceCents: 0,
+  collectedCents: 0,
+};
+
+/**
+ * A custody account is built from its two sides only — there is no opening
+ * balance for a custody:
+ *
+ * - **stock** still with the seller: delivered − returned − sold, at the
+ *   average delivery price (the warehouse side), and
+ * - **its customers**: what they still owe plus the cash they already handed
+ *   to the seller (money that stays with the custody until it is remitted).
+ *
+ * On top of that, a manual custody charge adds and a general custody
+ * collection (the seller handing money to the shop) subtracts.
+ *
+ * `charges` / `payments` may also carry customer rows; only the custody's own
+ * rows (`customerId === null`) are counted here, customer rows are counted
+ * through `customerTotals`.
+ */
 export function computeCustodyBalance({
-  openingBalanceCents,
   items,
+  sales = [],
   charges,
   payments,
+  customerTotals = NO_CUSTOMERS,
 }: {
-  openingBalanceCents: number;
   items: CustodyItemLite[];
+  sales?: SaleLite[];
   charges: ChargeLite[];
   payments: PaymentLite[];
+  customerTotals?: CustodyCustomerTotals;
 }) {
-  let balance = openingBalanceCents;
+  const stockValue = computeStockGroups(items, sales).reduce(
+    (total, group) => total + group.netValue,
+    0,
+  );
 
-  for (const item of items) {
-    balance +=
-      item.type === "DELIVERY" ? itemValue(item) : -itemValue(item);
-  }
+  // A customer's payment to the seller only swaps a receivable for cash in the
+  // seller's hand, so the custody keeps both: the debt and the cash collected.
+  const balance =
+    stockValue + customerTotals.balanceCents + customerTotals.collectedCents;
 
-  // A custody charge has no customer. Customer charges never touch this balance.
+  let running = balance;
+
+  // A custody charge has no customer. Customer charges are counted above.
   for (const charge of charges) {
-    if (charge.customerId === null) balance += charge.amountCents;
+    if (charge.customerId === null) running += charge.amountCents;
   }
 
-  // Only a general custody collection reduces the balance. A custody customer's
-  // payment goes to the seller, so it must have a customer and is ignored here.
+  // Only a general custody collection (money the seller hands to the shop)
+  // reduces the balance.
   for (const payment of payments) {
-    if (payment.customerId === null) balance -= payment.amountCents;
+    if (payment.customerId === null) running -= payment.amountCents;
   }
 
-  return balance;
+  return running;
 }
 
 export function computeCustomerBalance({
@@ -190,30 +224,112 @@ export function currentProductQuantity(movements: MovementLite[]) {
   return quantity;
 }
 
-export async function getCustodyBalanceMap() {
-  const [custodies, items, charges, payments] = await Promise.all([
-    db.custody.findMany({
-      select: { id: true, openingBalanceCents: true },
-    }),
-    db.custodyItem.findMany({
-      select: {
-        custodyId: true,
-        type: true,
-        name: true,
-        unit: true,
-        quantity: true,
-        unitPriceCents: true,
-      },
+/**
+ * Aggregates every custody's customers into `{ balance, collected }` totals.
+ * Customers with no custody are skipped — they belong to direct customers.
+ */
+export async function getCustodyCustomerTotalsMap(): Promise<
+  Map<string, CustodyCustomerTotals>
+> {
+  const [customers, charges, payments] = await Promise.all([
+    db.customer.findMany({
+      select: { id: true, custodyId: true, openingBalanceCents: true },
     }),
     db.charge.findMany({
-      where: { customerId: null },
-      select: { custodyId: true, customerId: true, amountCents: true },
+      where: { customerId: { not: null } },
+      select: { customerId: true, amountCents: true },
     }),
     db.payment.findMany({
-      where: { customerId: null },
-      select: { custodyId: true, customerId: true, amountCents: true },
+      where: { customerId: { not: null } },
+      select: { customerId: true, amountCents: true },
     }),
   ]);
+
+  const charged = new Map<string, number>();
+  for (const charge of charges) {
+    if (!charge.customerId) continue;
+    charged.set(
+      charge.customerId,
+      (charged.get(charge.customerId) ?? 0) + charge.amountCents,
+    );
+  }
+
+  const paid = new Map<string, number>();
+  for (const payment of payments) {
+    if (!payment.customerId) continue;
+    paid.set(
+      payment.customerId,
+      (paid.get(payment.customerId) ?? 0) + payment.amountCents,
+    );
+  }
+
+  const totals = new Map<string, CustodyCustomerTotals>();
+
+  for (const customer of customers) {
+    if (!customer.custodyId) continue;
+
+    const collectedCents = paid.get(customer.id) ?? 0;
+    const entry = totals.get(customer.custodyId) ?? {
+      balanceCents: 0,
+      collectedCents: 0,
+    };
+
+    entry.balanceCents +=
+      customer.openingBalanceCents +
+      (charged.get(customer.id) ?? 0) -
+      collectedCents;
+    entry.collectedCents += collectedCents;
+    totals.set(customer.custodyId, entry);
+  }
+
+  return totals;
+}
+
+export async function getCustodyBalanceMap() {
+  const [custodies, items, charges, payments, sales, customerTotals] =
+    await Promise.all([
+      db.custody.findMany({
+        select: { id: true },
+      }),
+      db.custodyItem.findMany({
+        select: {
+          custodyId: true,
+          type: true,
+          name: true,
+          unit: true,
+          quantity: true,
+          unitPriceCents: true,
+        },
+      }),
+      db.charge.findMany({
+        where: { customerId: null },
+        select: { custodyId: true, customerId: true, amountCents: true },
+      }),
+      db.payment.findMany({
+        where: { customerId: null },
+        select: { custodyId: true, customerId: true, amountCents: true },
+      }),
+      db.charge.findMany({
+        where: { itemName: { not: null }, custodyId: { not: null } },
+        select: {
+          custodyId: true,
+          itemName: true,
+          unit: true,
+          quantity: true,
+        },
+      }),
+      getCustodyCustomerTotalsMap(),
+    ]);
+
+  const salesByCustody = new Map<string, SaleLite[]>();
+  for (const sale of sales) {
+    if (!sale.custodyId) continue;
+    pushIntoList(salesByCustody, sale.custodyId, {
+      itemName: sale.itemName,
+      unit: sale.unit,
+      quantity: sale.quantity,
+    });
+  }
 
   const balances = new Map<string, number>();
 
@@ -221,15 +337,22 @@ export async function getCustodyBalanceMap() {
     balances.set(
       custody.id,
       computeCustodyBalance({
-        openingBalanceCents: custody.openingBalanceCents,
         items: items.filter((item) => item.custodyId === custody.id),
+        sales: salesByCustody.get(custody.id) ?? [],
         charges: charges.filter((charge) => charge.custodyId === custody.id),
         payments: payments.filter((payment) => payment.custodyId === custody.id),
+        customerTotals: customerTotals.get(custody.id),
       }),
     );
   }
 
   return balances;
+}
+
+function pushIntoList<T>(map: Map<string, T[]>, key: string, value: T) {
+  const list = map.get(key) ?? [];
+  list.push(value);
+  map.set(key, list);
 }
 
 export async function getCustomerBalanceMap() {

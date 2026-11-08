@@ -48,9 +48,10 @@ import { db } from "@/lib/db";
 import { formatDate, todayISO } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import {
+  type CustodyCustomerTotals,
+  type SaleLite,
   computeCustodyBalance,
   computeStockGroups,
-  getCustomerBalanceMap,
 } from "@/lib/queries/balances";
 
 export const metadata: Metadata = {
@@ -67,7 +68,7 @@ function first(value: string | string[] | undefined) {
 
 type LedgerRow = {
   id: string;
-  kind: "opening" | "delivery" | "return" | "charge" | "payment";
+  kind: "delivery" | "return" | "sale" | "customer" | "charge" | "payment";
   date: string;
   title: string;
   detail: string;
@@ -112,50 +113,112 @@ export default async function CustodyPage({
 
   if (!custody) notFound();
 
-  const [products, customerBalances] = await Promise.all([
+  const customerIds = custody.customers.map((customer) => customer.id);
+
+  const [products, customerCharges, customerPayments] = await Promise.all([
     db.product.findMany({
       where: { isActive: true },
       select: { id: true, name: true, unit: true },
       orderBy: { name: "asc" },
     }),
-    getCustomerBalanceMap(),
+    db.charge.findMany({
+      where: { customerId: { in: customerIds } },
+      select: { customerId: true, amountCents: true, occurredOn: true },
+    }),
+    db.payment.findMany({
+      where: { customerId: { in: customerIds } },
+      select: { customerId: true, amountCents: true, occurredOn: true },
+    }),
   ]);
 
+  const chargedByCustomer = new Map<string, number>();
+  const paidByCustomer = new Map<string, number>();
+  const lastOnByCustomer = new Map<string, string>();
+
+  const touchLastMove = (customerId: string, occurredOn: string) => {
+    const current = lastOnByCustomer.get(customerId);
+    if (!current || occurredOn > current) {
+      lastOnByCustomer.set(customerId, occurredOn);
+    }
+  };
+
+  for (const charge of customerCharges) {
+    if (!charge.customerId) continue;
+    chargedByCustomer.set(
+      charge.customerId,
+      (chargedByCustomer.get(charge.customerId) ?? 0) + charge.amountCents,
+    );
+    touchLastMove(charge.customerId, charge.occurredOn);
+  }
+
+  for (const payment of customerPayments) {
+    if (!payment.customerId) continue;
+    paidByCustomer.set(
+      payment.customerId,
+      (paidByCustomer.get(payment.customerId) ?? 0) + payment.amountCents,
+    );
+    touchLastMove(payment.customerId, payment.occurredOn);
+  }
+
+  // One entry per custody customer: what they owe, what they already handed
+  // the seller, and the date of their last movement (for the statement).
+  const customerRows = new Map<
+    string,
+    { balanceCents: number; collectedCents: number; lastOn: string }
+  >();
+  const customerTotals: CustodyCustomerTotals = {
+    balanceCents: 0,
+    collectedCents: 0,
+  };
+
+  for (const customer of custody.customers) {
+    const collectedCents = paidByCustomer.get(customer.id) ?? 0;
+    const balanceCents =
+      customer.openingBalanceCents +
+      (chargedByCustomer.get(customer.id) ?? 0) -
+      collectedCents;
+
+    customerRows.set(customer.id, {
+      balanceCents,
+      collectedCents,
+      lastOn: lastOnByCustomer.get(customer.id) ?? todayISO(customer.createdAt),
+    });
+
+    customerTotals.balanceCents += balanceCents;
+    customerTotals.collectedCents += collectedCents;
+  }
+
+  const sales: SaleLite[] = custody.charges
+    .filter((charge) => charge.customerId !== null && charge.itemName !== null)
+    .map((charge) => ({
+      itemName: charge.itemName,
+      unit: charge.unit,
+      quantity: charge.quantity,
+    }));
+
   const balance = computeCustodyBalance({
-    openingBalanceCents: custody.openingBalanceCents,
     items: custody.items,
+    sales,
     charges: custody.charges,
     payments: custody.payments,
+    customerTotals,
   });
 
-  const stockGroups = computeStockGroups(custody.items);
+  const stockGroups = computeStockGroups(custody.items, sales);
   const returnableGroups = stockGroups.filter((group) => group.netQty > 0);
+  const averagePriceByKey = new Map(
+    stockGroups.map((group) => [group.key, group.averageUnitPriceCents]),
+  );
+
+  const stockValueCents = stockGroups.reduce(
+    (total, group) => total + group.netValue,
+    0,
+  );
+  const customerExposureCents =
+    customerTotals.balanceCents + customerTotals.collectedCents;
 
   const ledger: LedgerRow[] = [];
   let running = 0;
-
-  if (custody.openingBalanceCents !== 0) {
-    running += custody.openingBalanceCents;
-    ledger.push({
-      id: "opening",
-      kind: "opening",
-      date: todayISO(custody.createdAt),
-      title: "الرصيد الافتتاحي",
-      detail: "رصيد بداية العهدة",
-      effect: custody.openingBalanceCents,
-      balance: running,
-    });
-  } else {
-    ledger.push({
-      id: "opening",
-      kind: "opening",
-      date: todayISO(custody.createdAt),
-      title: "الرصيد الافتتاحي",
-      detail: "بداية العهدة",
-      effect: 0,
-      balance: 0,
-    });
-  }
 
   for (const item of custody.items) {
     const value = item.quantity * item.unitPriceCents;
@@ -176,6 +239,57 @@ export default async function CustodyPage({
               item.unitPriceCents,
             )}${item.product ? ` → مخزن: ${item.product.name}` : ""}`,
       effect,
+      balance: running,
+    });
+  }
+
+  // Stock sales leave the custody: the goods are gone and the customer owes
+  // for them, so the stock side drops by the delivered value of the sale.
+  for (const charge of custody.charges) {
+    if (charge.customerId === null || !charge.itemName || !charge.quantity) {
+      continue;
+    }
+
+    const key = `${charge.itemName}|||${charge.unit ?? ""}`;
+    const unitPriceCents = averagePriceByKey.get(key) ?? 0;
+    const soldValue = charge.quantity * unitPriceCents;
+    if (soldValue === 0) continue;
+
+    running -= soldValue;
+    ledger.push({
+      id: `sale-${charge.id}`,
+      kind: "sale",
+      date: charge.occurredOn,
+      title: charge.itemName,
+      detail: `بيع ${charge.quantity}${charge.unit ? ` ${charge.unit}` : ""} × ${formatMoney(
+        unitPriceCents,
+      )}${charge.note ? ` · ${charge.note}` : ""}`,
+      effect: -soldValue,
+      balance: running,
+    });
+  }
+
+  // The custody's customers: their debt plus the cash they already paid the
+  // seller — both stay with the custody until the seller remits the money.
+  for (const customer of custody.customers) {
+    const row = customerRows.get(customer.id);
+    if (!row) continue;
+
+    const exposure = row.balanceCents + row.collectedCents;
+    if (exposure === 0) continue;
+
+    running += exposure;
+    ledger.push({
+      id: `customer-${customer.id}`,
+      kind: "customer",
+      date: row.lastOn,
+      title: `زبون ${customer.name}`,
+      detail: `رصيد ${formatMoney(row.balanceCents)}${
+        row.collectedCents > 0
+          ? ` · دفع للسيلر ${formatMoney(row.collectedCents)}`
+          : ""
+      }`,
+      effect: exposure,
       balance: running,
     });
   }
@@ -308,6 +422,10 @@ export default async function CustodyPage({
               : balance < 0
                 ? "العهدة ليها رصيد ليك"
                 : "الرصيد متساوي"}
+          </p>
+          <p className="mt-0.5 text-[11px] text-white/55">
+            بضاعة {formatMoney(stockValueCents)} · زبائن{" "}
+            {formatMoney(customerExposureCents)}
           </p>
         </div>
 
@@ -714,7 +832,8 @@ export default async function CustodyPage({
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {custody.customers.map((customer) => {
-                  const customerBalance = customerBalances.get(customer.id) ?? 0;
+                  const customerBalance =
+                    customerRows.get(customer.id)?.balanceCents ?? 0;
 
                   return (
                     <Link
@@ -952,6 +1071,13 @@ export default async function CustodyPage({
               </Table>
             </CardContent>
           </Card>
+
+          <p className="rounded-xl bg-surface-muted/60 px-3.5 py-3 text-xs leading-6 text-muted">
+            رصيد العهدة = البضاعة الموجودة في العهدة (وارد − مرتجع − مبيع) +
+            مديونية زبائن العهدة وفلوسهم اللي عند السيلر − التحصيل العام اللي
+            وصل للمحل + الاستحقاق اليدوي. مفيش رصيد افتتاحي للعهدة — الحساب
+            كله بيخرج من زبائنها وبضاعتها.
+          </p>
         </div>
       ) : null}
     </>

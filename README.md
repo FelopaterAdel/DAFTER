@@ -46,8 +46,11 @@ One simple system with:
 | **My warehouse** (مخزني) | Your own stock, not delivered to anyone. |
 | **Balance** (رصيد) | Charges − payments. |
 
-> **Golden rule:** a custody's balance with you is separate from its customers' balances.
-> When a customer pays the seller, that does not mean the seller paid you.
+> **Golden rule:** a custody's account is built from its two sides — the stock
+> still with the seller and its customers (what they owe plus the cash they
+> already paid the seller). A custody has **no opening balance**.
+> When a customer pays the seller, that does not mean the seller paid you:
+> the money only moves from the customer's debt to cash in the seller's hand.
 > **Cash today** = custody collections + payments from your direct customers only.
 
 ---
@@ -131,7 +134,7 @@ Product 1 ──< StockMovement
 | `name` | String | Unique, required |
 | `phone` | String? | Optional |
 | `note` | String? | General note |
-| `openingBalanceCents` | Int | Opening balance (default 0) |
+| `openingBalanceCents` | Int | Legacy (default 0) — ignored; a custody has no opening balance |
 | `isActive` | Boolean | Default true |
 | `createdAt` / `updatedAt` | DateTime | — |
 
@@ -152,7 +155,7 @@ Product 1 ──< StockMovement
 | `createdAt` | DateTime | — |
 
 **Line value** = `quantity × unitPriceCents`.
-A **delivery** increases the custody balance; a **return** decreases it.
+A **delivery** increases the custody balance; a **return** decreases it; a **sale** to a custody customer swaps the goods for that customer's debt.
 
 **Returns:** a return decreases custody stock/balance and creates a warehouse `StockMovement` of type `IN` for the linked `productId`, so the goods appear immediately in my warehouse. The movement is linked to the return and removed with it.
 
@@ -184,7 +187,7 @@ A **delivery** increases the custody balance; a **return** decreases it.
 | `createdAt` | DateTime | — |
 
 > Every charge must belong to a custody or a customer (at least one).
-> Customer charges do not affect the custody balance.
+> Customer charges enter the custody balance through that custody's customers.
 
 #### `Payment` — collection or customer payment
 
@@ -242,20 +245,22 @@ A **delivery** increases the custody balance; a **return** decreases it.
 
 ```
 Custody balance =
-    openingBalance
-  + sum(deliveries: quantity × unit price)
-  − sum(returns: quantity × unit price)
+    stock on hand (delivered − returned − sold, at average delivery price)
+  + sum(custody-customer balances)
+  + sum(cash custody customers already paid the seller)
   + sum(manual custody charges)
   − sum(custody collections)
+  — no opening balance for a custody
 
 Customer balance =
-    sum(customer charges)
+    openingBalance (customers only)
+  + sum(customer charges)
   − sum(customer payments)
 
 Total custody debt =
     sum of balances of active custodies
 
-Custody customers' debt (informational — owed to the sellers) =
+Custody customers' debt (a part of the custody balances above) =
     sum of custody-customer balances
 
 Direct customers' debt (owed to you) =
@@ -275,17 +280,17 @@ Cash today =
   + sum(direct customer payments today)
 
 Net custody stock per item =
-    sum(delivered quantity) − sum(returned quantity)
+    sum(delivered quantity) − sum(returned quantity) − sum(sold quantity)
 ```
 
 ### Key accounting decisions
 
 1. **Daily collection** is a general payment against a custody; no customer must be selected.
-2. **A custody customer's payment** does not reduce the custody balance, because the money went to the seller, not to you.
+2. **A custody customer's payment** does not reduce the custody balance, because the money went to the seller, not to you: it only swaps the customer's debt for cash in the seller's hand, and that cash stays counted in the custody balance.
 3. **A direct customer's payment** reduces their balance and counts as cash received by you.
-4. **Custody stock** is the basis of the custody's debt to you.
+4. **Custody stock and its customers** are the basis of the custody's account: the goods still with the seller plus what its customers owe (and the cash they already paid the seller).
 5. **Returns** reduce both custody stock and the custody balance, and add the returned quantity to my warehouse as an `IN` movement.
-6. **Opening balance** allows starting with existing balances without entering full history.
+6. **Opening balance** applies to **customers only**; a custody account is always computed from its stock and its customers.
 7. All amounts are stored as **integer piastres** (`Cents`) to avoid floating-point errors.
 
 ---
@@ -330,7 +335,7 @@ Net custody stock per item =
 - Filter: active / inactive / all.
 - Table: name, phone, customer count, balance, status, actions.
 - On mobile: cards instead of a table.
-- “New custody” opens a form (name, phone, note, opening balance).
+- “New custody” opens a form (name, phone, note).
 
 ### 7.5 Custody details `/custodies/[id]`
 
@@ -340,7 +345,7 @@ Net custody stock per item =
 
 1. **Stock:** items table (name, delivered, returned, net quantity, unit price, value, note) + totals + “Add stock” / “Record return”.
 2. **Customers:** the custody's customers and their balances + “New customer” + link to each customer.
-3. **Statement:** all movements newest first (deliveries / returns / charges / collections) with a running balance and date filter.
+3. **Statement:** all movements newest first (deliveries / returns / stock sales / the custody's customers / manual charges / collections) with a running balance and date filter.
 4. **Notes:** custody note and general notes.
 
 ### 7.6 Customers `/customers`
@@ -425,7 +430,7 @@ Net custody stock per item =
 5. **Goods returned from a custody:** open the custody → “Record return” → stock and balance decrease, and the returned quantity is added to the linked product in my warehouse.
 6. **End of day:** open “Daily collections” → record the amount received from each custody → the custody balance decreases.
 7. **Direct customer:** “Customers without custody” → name + country + amount + note, then track payments the same way (these count as your cash).
-8. **Review:** the custody statement shows stock, returns, collections, and the current balance.
+8. **Review:** the custody statement shows stock, sales, its customers, collections, and the current balance.
 
 ---
 

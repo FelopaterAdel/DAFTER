@@ -295,7 +295,9 @@ db.close();
 
 console.log("Test DB ready:", TARGET);
 console.log("PIN: 1234");
-console.log("Custody balance: EGP 1,300.00");
+console.log(
+  "Custody balance: EGP 450.00 (stock 400 + customer 100 + collected 50 + charge 200 − collection 300; no opening balance)",
+);
 console.log("Custody customer balance: EGP 100.00");
 console.log("Direct customer balance: EGP 100.00");
 console.log("Collections 2026-11-01..05: EGP 320.00");

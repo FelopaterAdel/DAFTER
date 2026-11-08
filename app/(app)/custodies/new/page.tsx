@@ -24,7 +24,7 @@ export default async function NewCustodyPage() {
       <PageHeader
         eyebrow="عهدة جديدة"
         title="افتح عهدة لسيلر"
-        description="اسم العهدة والرصيد الافتتاحي بس، وبعدها تقدر تضيف البضاعة والزبائن."
+        description="اسم العهدة بس، وبعدها تقدر تضيف البضاعة والزبائن."
       />
 
       <Card>
@@ -58,19 +58,6 @@ export default async function NewCustodyPage() {
                   name="phone"
                   inputMode="tel"
                   placeholder="01xxxxxxxxx"
-                />
-              </Field>
-
-              <Field
-                label="الرصيد الافتتاحي (جنيه)"
-                htmlFor="openingBalance"
-                hint="لو العهدة جديدة، سيبه صفر."
-              >
-                <Input
-                  id="openingBalance"
-                  name="openingBalance"
-                  inputMode="decimal"
-                  placeholder="0"
                 />
               </Field>
 

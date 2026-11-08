@@ -3,6 +3,8 @@ import "server-only";
 import { db } from "@/lib/db";
 import { todayISO } from "@/lib/dates";
 import {
+  type CustodyCustomerTotals,
+  type SaleLite,
   computeCustomerBalance,
   computeCustodyBalance,
   currentProductQuantity,
@@ -22,6 +24,9 @@ type LiteCharge = {
   custodyId: string | null;
   customerId: string | null;
   amountCents: number;
+  itemName: string | null;
+  unit: string | null;
+  quantity: number | null;
 };
 
 type LitePayment = {
@@ -54,7 +59,6 @@ export async function getDashboardSnapshot() {
         id: true,
         name: true,
         isActive: true,
-        openingBalanceCents: true,
       },
     }),
     db.custodyItem.findMany({
@@ -68,7 +72,14 @@ export async function getDashboardSnapshot() {
       },
     }),
     db.charge.findMany({
-      select: { custodyId: true, customerId: true, amountCents: true },
+      select: {
+        custodyId: true,
+        customerId: true,
+        amountCents: true,
+        itemName: true,
+        unit: true,
+        quantity: true,
+      },
     }),
     db.payment.findMany({
       select: {
@@ -92,7 +103,7 @@ export async function getDashboardSnapshot() {
       select: { productId: true, type: true, quantity: true },
     }),
     db.customer.findMany({
-      select: { id: true, name: true, custodyId: true },
+      select: { id: true, name: true, custodyId: true, openingBalanceCents: true },
     }),
     db.payment.findMany({
       where: {
@@ -130,34 +141,67 @@ export async function getDashboardSnapshot() {
     }
   }
 
+  // Stock sales (3A) reduce what is still on hand in the custody.
+  const salesByCustody = new Map<string, SaleLite[]>();
+  for (const charge of charges) {
+    if (charge.itemName && charge.custodyId) {
+      pushInto(salesByCustody, charge.custodyId, {
+        itemName: charge.itemName,
+        unit: charge.unit,
+        quantity: charge.quantity,
+      });
+    }
+  }
+
+  // A custody's customers are one of the two sides of its account.
+  const customerTotalsByCustody = new Map<string, CustodyCustomerTotals>();
+  let custodyCustomersDebtCents = 0;
+  let directDebtCents = 0;
+
+  for (const customer of customers) {
+    const balance = computeCustomerBalance({
+      openingBalanceCents: customer.openingBalanceCents,
+      charges: chargesByCustomer.get(customer.id) ?? [],
+      payments: paymentsByCustomer.get(customer.id) ?? [],
+    });
+
+    if (!customer.custodyId) {
+      directDebtCents += balance;
+      continue;
+    }
+
+    custodyCustomersDebtCents += balance;
+
+    const collectedCents = (paymentsByCustomer.get(customer.id) ?? []).reduce(
+      (total, payment) => total + payment.amountCents,
+      0,
+    );
+    const entry = customerTotalsByCustody.get(customer.custodyId) ?? {
+      balanceCents: 0,
+      collectedCents: 0,
+    };
+    entry.balanceCents += balance;
+    entry.collectedCents += collectedCents;
+    customerTotalsByCustody.set(customer.custodyId, entry);
+  }
+
   const custodyBalances = custodies.map((custody) => ({
     id: custody.id,
     name: custody.name,
     isActive: custody.isActive,
     balanceCents: computeCustodyBalance({
-      openingBalanceCents: custody.openingBalanceCents,
       items: itemsByCustody.get(custody.id) ?? [],
+      sales: salesByCustody.get(custody.id) ?? [],
       charges: chargesByCustody.get(custody.id) ?? [],
       payments: paymentsByCustody.get(custody.id) ?? [],
+      customerTotals: customerTotalsByCustody.get(custody.id),
     }),
   }));
 
   let custodyDebtCents = 0;
-  let custodyCustomersDebtCents = 0;
-  let directDebtCents = 0;
 
   for (const custody of custodyBalances) {
     if (custody.isActive) custodyDebtCents += custody.balanceCents;
-  }
-
-  for (const customer of customers) {
-    const balance = computeCustomerBalance({
-      charges: chargesByCustomer.get(customer.id) ?? [],
-      payments: paymentsByCustomer.get(customer.id) ?? [],
-    });
-
-    if (customer.custodyId) custodyCustomersDebtCents += balance;
-    else directDebtCents += balance;
   }
 
   const movementsByProduct = new Map<

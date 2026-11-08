@@ -14,8 +14,11 @@ function safeRedirect(value: string, fallback: string) {
 }
 
 /**
- * Phase 3E: sets the opening balance of a custody or a customer straight from
- * the "أرصدة افتتاحية" screen — the paper-ledger way of moving old balances in.
+ * Phase 3E: sets the opening balance of a customer straight from the
+ * "أرصدة افتتاحية" screen — the paper-ledger way of moving old balances in.
+ *
+ * Custodies have no opening balance: a custody account is always computed
+ * from its stock and its customers.
  */
 export async function setOpeningBalanceAction(
   _state: FormState,
@@ -37,26 +40,6 @@ export async function setOpeningBalanceAction(
   const value = readMoney(formData, "openingBalance");
   if (value === null || value < 0) {
     return { error: "الرصيد الافتتاحي لازم يكون صفر أو أكبر." };
-  }
-
-  if (scope === "custody") {
-    const custody = await db.custody.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-    if (!custody) return { error: "العهدة مش موجودة." };
-
-    await db.custody.update({
-      where: { id },
-      data: { openingBalanceCents: value },
-    });
-
-    revalidatePath("/");
-    revalidatePath("/custodies");
-    revalidatePath(`/custodies/${id}`);
-    revalidatePath("/opening-balances");
-    revalidatePath("/reports/custody-debts");
-    redirect(safeRedirect(redirectTo, "/opening-balances"));
   }
 
   if (scope === "customer") {
