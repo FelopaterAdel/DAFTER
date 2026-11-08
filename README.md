@@ -370,13 +370,15 @@ Net custody stock per item =
 
 ### 7.8 Daily collections `/collections`
 
-**Quick form at the top (custody collection):**
+**Quick form at the top (one card, custody or direct customer):**
 
+- Kind selector: “Custody collection” or “Direct customer payment”.
 - Date (defaults to today).
-- Custody (searchable dropdown).
+- Custody or direct customer (the dropdown switches with the chosen kind).
 - Amount.
 - Note.
-- “Record collection” button.
+- “Record collection” / “Record payment” button.
+- Empty state per kind when nothing matches (no active custodies / no direct customers).
 
 **Today's summary:**
 
@@ -385,11 +387,6 @@ Net custody stock per item =
 - Direct customer payments total.
 - Number of operations.
 - Breakdown by custody.
-
-**Direct customer payments section:**
-
-- List of today's direct customer payments.
-- Quick “Record payment” action (select direct customer + amount).
 
 **Collection log:**
 
@@ -527,6 +524,7 @@ components/
   ui/                       ← buttons, cards, inputs, tables, modals
   layout/                   ← navigation, header
   forms/                    ← custody/customer/collection forms
+  collections/              ← merged custody/direct collection form
 prisma/
   schema.prisma
   dev.db                    ← gitignored

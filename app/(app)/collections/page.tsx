@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { PageHeader } from "@/components/layout/page-header";
+import { CollectionForm } from "@/components/collections/collection-form";
 import { ActionForm } from "@/components/forms/action-form";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PlusIcon, WalletIcon } from "@/components/ui/icons";
+import { WalletIcon } from "@/components/ui/icons";
 import { Field, Input, Select } from "@/components/ui/input";
 import {
   Table,
@@ -19,7 +20,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  createPaymentAction,
   deletePaymentAction,
   updateCustodyCollectionAction,
   updateDirectPaymentAction,
@@ -341,177 +341,20 @@ export default async function CollectionsPage({
         </Card>
       ) : null}
 
-      <div className="mb-5 grid gap-5 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>تحصيل من عهدة</CardTitle>
-            <Badge tone="brand">كاش</Badge>
-          </CardHeader>
-          <CardContent className="pt-4">
-            {activeCustodies.length === 0 ? (
-              <EmptyState
-                icon={WalletIcon}
-                title="مفيش عهد نشطة"
-                description="أضف عهدة الأول عشان تسجّل تحصيلها."
-                action={
-                  <Link
-                    href="/custodies/new"
-                    className={buttonStyles({ size: "sm" })}
-                  >
-                    <PlusIcon className="size-4" />
-                    عهدة جديدة
-                  </Link>
-                }
-              />
-            ) : (
-              <ActionForm
-                action={createPaymentAction}
-                submitLabel="تسجيل التحصيل"
-                pendingLabel="جارٍ التسجيل..."
-              >
-                <input type="hidden" name="kind" value="custody" />
-                <input type="hidden" name="redirectTo" value={listHref} />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field
-                    label="العهدة"
-                    htmlFor="collection-custody"
-                    className="sm:col-span-2"
-                  >
-                    <Select
-                      id="collection-custody"
-                      name="custodyId"
-                      required
-                      defaultValue=""
-                    >
-                      <option value="">اختار العهدة…</option>
-                      {activeCustodies.map((custody) => (
-                        <option key={custody.id} value={custody.id}>
-                          {custody.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label="المبلغ (جنيه)" htmlFor="collection-amount">
-                    <Input
-                      id="collection-amount"
-                      name="amount"
-                      inputMode="decimal"
-                      required
-                      placeholder="0"
-                    />
-                  </Field>
-                  <Field label="التاريخ" htmlFor="collection-date">
-                    <Input
-                      id="collection-date"
-                      name="occurredOn"
-                      type="date"
-                      required
-                      defaultValue={today}
-                    />
-                  </Field>
-                  <Field
-                    label="ملاحظات"
-                    htmlFor="collection-note"
-                    className="sm:col-span-2"
-                  >
-                    <Input
-                      id="collection-note"
-                      name="note"
-                      placeholder="اختياري"
-                    />
-                  </Field>
-                </div>
-              </ActionForm>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>دفعة من زبون مباشر</CardTitle>
-            <Badge tone="gold">كاش</Badge>
-          </CardHeader>
-          <CardContent className="pt-4">
-            {directCustomers.length === 0 ? (
-              <EmptyState
-                icon={WalletIcon}
-                title="مفيش زبائن مباشرين"
-                description="أضف زبون مباشر ببلد أو منطقة عشان تسجّل دفعاته."
-                action={
-                  <Link
-                    href="/customers/new"
-                    className={buttonStyles({ size: "sm" })}
-                  >
-                    <PlusIcon className="size-4" />
-                    زبون جديد
-                  </Link>
-                }
-              />
-            ) : (
-              <ActionForm
-                action={createPaymentAction}
-                submitLabel="تسجيل الدفعة"
-                pendingLabel="جارٍ التسجيل..."
-                variant="gold"
-              >
-                <input type="hidden" name="kind" value="direct" />
-                <input type="hidden" name="redirectTo" value={listHref} />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field
-                    label="الزبون"
-                    htmlFor="direct-customer"
-                    className="sm:col-span-2"
-                  >
-                    <Select
-                      id="direct-customer"
-                      name="customerId"
-                      required
-                      defaultValue=""
-                    >
-                      <option value="">اختار الزبون…</option>
-                      {directCustomers.map((customer) => (
-                        <option key={customer.id} value={customer.id}>
-                          {customer.name}
-                          {customer.country ? ` — ${customer.country}` : ""}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label="المبلغ (جنيه)" htmlFor="direct-amount">
-                    <Input
-                      id="direct-amount"
-                      name="amount"
-                      inputMode="decimal"
-                      required
-                      placeholder="0"
-                    />
-                  </Field>
-                  <Field label="التاريخ" htmlFor="direct-date">
-                    <Input
-                      id="direct-date"
-                      name="occurredOn"
-                      type="date"
-                      required
-                      defaultValue={today}
-                    />
-                  </Field>
-                  <Field
-                    label="ملاحظات"
-                    htmlFor="direct-note"
-                    className="sm:col-span-2"
-                  >
-                    <Input
-                      id="direct-note"
-                      name="note"
-                      placeholder="اختياري"
-                    />
-                  </Field>
-                </div>
-              </ActionForm>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="mb-5">
+        <CardHeader>
+          <CardTitle>تسجيل تحصيل</CardTitle>
+          <Badge tone="brand">كاش</Badge>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <CollectionForm
+            custodies={activeCustodies}
+            customers={directCustomers}
+            redirectTo={listHref}
+            defaultDate={today}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
