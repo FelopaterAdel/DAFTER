@@ -60,7 +60,10 @@ export const metadata: Metadata = {
 
 export const instant = false;
 
-type SearchParams = Promise<{ tab?: string | string[] }>;
+type SearchParams = Promise<{
+  tab?: string | string[];
+  q?: string | string[];
+}>;
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
@@ -90,6 +93,7 @@ export default async function CustodyPage({
   const tab = ["stock", "customers", "statement"].includes(first(query.tab))
     ? first(query.tab)
     : "stock";
+  const q = first(query.q).trim();
 
   const custody = await db.custody.findUnique({
     where: { id },
@@ -325,6 +329,15 @@ export default async function CustodyPage({
   }
 
   const statementRows = [...ledger].reverse();
+
+  // Search filters only the rendered customer list — never the Prisma query,
+  // since custody.customers feeds balance/statement math above.
+  const search = q.toLocaleLowerCase("ar");
+  const visibleCustomers = search
+    ? custody.customers.filter((customer) =>
+        customer.name.toLocaleLowerCase("ar").includes(search),
+      )
+    : custody.customers;
 
   const tabs = [
     {
@@ -821,34 +834,94 @@ export default async function CustodyPage({
                 }
               />
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {custody.customers.map((customer) => {
-                  const customerBalance =
-                    customerRows.get(customer.id)?.balanceCents ?? 0;
+              <div className="space-y-4">
+                <form
+                  method="get"
+                  className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                >
+                  <input type="hidden" name="tab" value="customers" />
+                  <Input
+                    name="q"
+                    defaultValue={q}
+                    placeholder="ابحث باسم الزبون…"
+                    aria-label="بحث في زبائن العهدة"
+                  />
+                  <button
+                    type="submit"
+                    className={buttonStyles({ variant: "secondary" })}
+                  >
+                    بحث
+                  </button>
+                </form>
 
-                  return (
-                    <Link
-                      key={customer.id}
-                      href={`/customers/${customer.id}`}
-                      className="rounded-xl border border-line bg-surface p-4 transition-colors hover:border-brand/30 hover:bg-brand-soft/20"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-ink">
-                            {customer.name}
-                          </p>
-                          <p className="mt-0.5 text-[11px] text-muted">
-                            {customer.phone || "بدون هاتف"}
-                            {customer.country ? ` · ${customer.country}` : ""}
-                          </p>
-                        </div>
-                        <span className="whitespace-nowrap text-sm font-extrabold text-brand-dark">
-                          {formatMoney(customerBalance)}
-                        </span>
-                      </div>
-                    </Link>
-                  );
-                })}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+                  <p>
+                    <span className="font-bold text-ink">
+                      {visibleCustomers.length}
+                    </span>{" "}
+                    من {custody.customers.length} زبون ظاهر
+                    {q ? (
+                      <>
+                        {" "}
+                        ·{" "}
+                        <Link
+                          href={`/custodies/${id}?tab=customers`}
+                          className="font-bold text-brand hover:underline"
+                        >
+                          مسح البحث
+                        </Link>
+                      </>
+                    ) : null}
+                  </p>
+                </div>
+
+                {visibleCustomers.length === 0 ? (
+                  <EmptyState
+                    icon={UsersIcon}
+                    title="مفيش نتائج للبحث"
+                    description="جرّب اسم تاني أو جزء من الاسم."
+                    action={
+                      <Link
+                        href={`/custodies/${id}?tab=customers`}
+                        className={buttonStyles({ size: "sm" })}
+                      >
+                        مسح البحث
+                      </Link>
+                    }
+                  />
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {visibleCustomers.map((customer) => {
+                      const customerBalance =
+                        customerRows.get(customer.id)?.balanceCents ?? 0;
+
+                      return (
+                        <Link
+                          key={customer.id}
+                          href={`/customers/${customer.id}`}
+                          className="rounded-xl border border-line bg-surface p-4 transition-colors hover:border-brand/30 hover:bg-brand-soft/20"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-ink">
+                                {customer.name}
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-muted">
+                                {customer.phone || "بدون هاتف"}
+                                {customer.country
+                                  ? ` · ${customer.country}`
+                                  : ""}
+                              </p>
+                            </div>
+                            <span className="whitespace-nowrap text-sm font-extrabold text-brand-dark">
+                              {formatMoney(customerBalance)}
+                            </span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
