@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { ActionForm } from "@/components/forms/action-form";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BoxIcon, PlusIcon } from "@/components/ui/icons";
-import { Input, Select } from "@/components/ui/input";
+import { Field, Input, Select } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -15,7 +17,9 @@ import {
   TableHeaderCell,
   TableRow,
 } from "@/components/ui/table";
+import { addStockMovementAction } from "@/lib/actions/warehouse";
 import { requireAuth } from "@/lib/auth/dal";
+import { todayISO } from "@/lib/dates";
 import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import {
@@ -57,7 +61,7 @@ export default async function WarehousePage({
     ? first(params.status)
     : "active";
 
-  const [products, quantities] = await Promise.all([
+  const [products, quantities, activeProducts] = await Promise.all([
     db.product.findMany({
       where: {
         ...(status === "active" ? { isActive: true } : {}),
@@ -67,6 +71,11 @@ export default async function WarehousePage({
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
     }),
     getProductQuantityMap(),
+    db.product.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, unit: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   const totalQuantity = products.reduce(
@@ -134,6 +143,71 @@ export default async function WarehousePage({
           بحث
         </button>
       </form>
+
+      {activeProducts.length > 0 ? (
+        <Card className="mb-5">
+          <CardHeader>
+            <CardTitle>إدخال سريع للمخزن</CardTitle>
+            <span className="rounded-full bg-gold-soft px-2.5 py-1 text-[11px] font-bold text-ink">
+              اختار الصنف والكمية
+            </span>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ActionForm
+              action={addStockMovementAction}
+              submitLabel="إدخال للمخزن"
+              pendingLabel="جارٍ الإدخال..."
+              variant="gold"
+            >
+              <input type="hidden" name="type" value="IN" />
+              <input type="hidden" name="redirectTo" value="/warehouse" />
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_120px_170px_minmax(0,1fr)]">
+                <Field label="الصنف" htmlFor="quick-product">
+                  <Select
+                    id="quick-product"
+                    name="productId"
+                    required
+                    defaultValue=""
+                  >
+                    <option value="">اختار الصنف…</option>
+                    {activeProducts.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name}
+                        {product.unit ? ` (${product.unit})` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="الكمية" htmlFor="quick-quantity">
+                  <Input
+                    id="quick-quantity"
+                    name="quantity"
+                    inputMode="numeric"
+                    required
+                    placeholder="1"
+                  />
+                </Field>
+                <Field label="التاريخ" htmlFor="quick-date">
+                  <Input
+                    id="quick-date"
+                    name="occurredOn"
+                    type="date"
+                    required
+                    defaultValue={todayISO()}
+                  />
+                </Field>
+                <Field label="ملاحظات" htmlFor="quick-note">
+                  <Input
+                    id="quick-note"
+                    name="note"
+                    placeholder="اختياري"
+                  />
+                </Field>
+              </div>
+            </ActionForm>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {products.length === 0 ? (
         <EmptyState

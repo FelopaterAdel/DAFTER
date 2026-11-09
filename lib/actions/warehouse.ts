@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireAuth } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
-import { type FormState } from "@/lib/forms";
+import { type FormState, safeRedirectPath } from "@/lib/forms";
 import { currentProductQuantity } from "@/lib/queries/balances";
 import {
   messages,
@@ -110,6 +110,44 @@ export async function createProductAction(
   redirect(`/warehouse/${product.id}`);
 }
 
+/**
+ * Quick product creation from the goods page: just a name and one price,
+ * saved as both the cost and the sale price. Lands back on `redirectTo`.
+ */
+export async function createQuickProductAction(
+  _state: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAuth();
+
+  const name = readString(formData, "name");
+  const price = readMoney(formData, "price");
+  const redirectTo = readString(formData, "redirectTo");
+
+  const nameError = validateProductName(name);
+  if (nameError) return { error: nameError };
+  if (price === null || price <= 0) {
+    return { error: "اكتب سعر البضاعة (أكبر من صفر)." };
+  }
+
+  const duplicate = await db.product.findUnique({
+    where: { name },
+    select: { id: true },
+  });
+  if (duplicate) return { error: "فيه صنف بنفس الاسم بالفعل." };
+
+  const product = await db.product.create({
+    data: {
+      name,
+      costPriceCents: price,
+      salePriceCents: price,
+    },
+  });
+
+  revalidateWarehousePaths(product.id);
+  redirect(safeRedirectPath(redirectTo, "/goods"));
+}
+
 export async function updateProductAction(
   _state: FormState,
   formData: FormData,
@@ -169,6 +207,7 @@ export async function addStockMovementAction(
   const occurredOn = readDate(formData, "occurredOn");
   const note = readOptionalString(formData, "note");
   const unitPrice = parseOptionalMoney(formData, "unitPrice");
+  const redirectTo = readString(formData, "redirectTo");
 
   if (!productId) return { error: "الصنف مش موجود." };
   if (type !== "IN" && type !== "OUT" && type !== "ADJUST") {
@@ -203,19 +242,23 @@ export async function addStockMovementAction(
     }
   }
 
+  // A quick stock-in without a price records the catalog cost price.
+  const unitPriceCents =
+    unitPrice.value ?? (type === "IN" ? product.costPriceCents : null);
+
   await db.stockMovement.create({
     data: {
       productId,
       type,
       quantity,
-      unitPriceCents: unitPrice.value,
+      unitPriceCents,
       occurredOn,
       note,
     },
   });
 
   revalidateWarehousePaths(productId);
-  redirect(`/warehouse/${productId}`);
+  redirect(safeRedirectPath(redirectTo, `/warehouse/${productId}`));
 }
 
 export async function deleteStockMovementAction(formData: FormData) {
@@ -240,9 +283,7 @@ export async function deleteStockMovementAction(formData: FormData) {
   await db.stockMovement.delete({ where: { id } });
 
   revalidateWarehousePaths(movement.productId);
-  const safe =
-    redirectTo.startsWith("/") && !redirectTo.startsWith("//")
-      ? redirectTo
-      : `/warehouse/${movement.productId}`;
-  redirect(safe);
+  redirect(
+    safeRedirectPath(redirectTo, `/warehouse/${movement.productId}`),
+  );
 }

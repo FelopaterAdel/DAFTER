@@ -122,7 +122,13 @@ export default async function CustodyPage({
   const [products, customerCharges, customerPayments] = await Promise.all([
     db.product.findMany({
       where: { isActive: true },
-      select: { id: true, name: true, unit: true },
+      select: {
+        id: true,
+        name: true,
+        unit: true,
+        costPriceCents: true,
+        salePriceCents: true,
+      },
       orderBy: { name: "asc" },
     }),
     db.charge.findMany({
@@ -542,68 +548,92 @@ export default async function CustodyPage({
                 <Badge tone="info">وارد</Badge>
               </CardHeader>
               <CardContent className="pt-4">
-                <ActionForm
-                  action={addCustodyDeliveryAction}
-                  submitLabel="إضافة التوريد"
-                  pendingLabel="جارٍ الإضافة..."
-                >
-                  <input type="hidden" name="custodyId" value={custody.id} />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field
-                      label="اسم الصنف"
-                      htmlFor="delivery-name"
-                      className="sm:col-span-2"
-                    >
-                      <Input
-                        id="delivery-name"
-                        name="name"
-                        required
-                        placeholder="مثال: زيت، أرز، سكر"
-                      />
-                    </Field>
-                    <Field label="الوحدة" htmlFor="delivery-unit" hint="اختياري">
-                      <Input
-                        id="delivery-unit"
-                        name="unit"
-                        placeholder="كرتونة، كيس، قطعة"
-                      />
-                    </Field>
-                    <Field label="الكمية" htmlFor="delivery-quantity">
-                      <Input
-                        id="delivery-quantity"
-                        name="quantity"
-                        inputMode="numeric"
-                        required
-                        placeholder="1"
-                      />
-                    </Field>
-                    <Field label="سعر الوحدة (جنيه)" htmlFor="delivery-price">
-                      <Input
-                        id="delivery-price"
-                        name="unitPrice"
-                        inputMode="decimal"
-                        required
-                        placeholder="0"
-                      />
-                    </Field>
-                    <Field label="التاريخ" htmlFor="delivery-date">
-                      <Input
-                        id="delivery-date"
-                        name="occurredOn"
-                        type="date"
-                        required
-                        defaultValue={todayISO()}
-                      />
-                    </Field>
-                    <Field
-                      label="ملاحظات"
-                      htmlFor="delivery-note"
-                      className="sm:col-span-2"
-                    >
-                      <Input id="delivery-note" name="note" placeholder="اختياري" />
-                    </Field>
-                  </div>
-                </ActionForm>
+                {products.length === 0 ? (
+                  <EmptyState
+                    icon={BriefcaseIcon}
+                    title="مفيش بضائع لسه"
+                    description="ضيف بضاعتك في صفحة البضائع (اسم وسعر)، وبعدها تقدر تورّدها للعهدة."
+                    action={
+                      <Link
+                        href="/goods"
+                        className={buttonStyles({ size: "sm" })}
+                      >
+                        <PlusIcon className="size-4" />
+                        صفحة البضائع
+                      </Link>
+                    }
+                  />
+                ) : (
+                  <ActionForm
+                    action={addCustodyDeliveryAction}
+                    submitLabel="إضافة التوريد"
+                    pendingLabel="جارٍ الإضافة..."
+                  >
+                    <input
+                      type="hidden"
+                      name="custodyId"
+                      value={custody.id}
+                    />
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field
+                        label="البضاعة"
+                        htmlFor="delivery-product"
+                        className="sm:col-span-2"
+                        hint="السعر تلقائي من صفحة البضائع (سعر البيع، وإلا التكلفة)."
+                      >
+                        <Select
+                          id="delivery-product"
+                          name="productId"
+                          required
+                          defaultValue=""
+                        >
+                          <option value="">اختار البضاعة…</option>
+                          {products.map((product) => {
+                            const price =
+                              product.salePriceCents || product.costPriceCents;
+
+                            return (
+                              <option key={product.id} value={product.id}>
+                                {product.name}
+                                {product.unit ? ` (${product.unit})` : ""} —{" "}
+                                {price > 0 ? formatMoney(price) : "بدون سعر"}
+                              </option>
+                            );
+                          })}
+                        </Select>
+                      </Field>
+                      <Field label="الكمية" htmlFor="delivery-quantity">
+                        <Input
+                          id="delivery-quantity"
+                          name="quantity"
+                          inputMode="numeric"
+                          required
+                          placeholder="1"
+                        />
+                      </Field>
+                      <Field label="التاريخ" htmlFor="delivery-date">
+                        <Input
+                          id="delivery-date"
+                          name="occurredOn"
+                          type="date"
+                          required
+                          defaultValue={todayISO()}
+                        />
+                      </Field>
+                      <Field
+                        label="ملاحظات"
+                        htmlFor="delivery-note"
+                        className="sm:col-span-2"
+                      >
+                        <Input
+                          id="delivery-note"
+                          name="note"
+                          placeholder="اختياري"
+                        />
+                      </Field>
+                    </div>
+                  </ActionForm>
+                )}
               </CardContent>
             </Card>
 

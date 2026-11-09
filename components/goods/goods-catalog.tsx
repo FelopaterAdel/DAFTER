@@ -10,7 +10,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import {
   BoxIcon,
   BriefcaseIcon,
-  PlusIcon,
   TagIcon,
 } from "@/components/ui/icons";
 import { Field, Input, Select } from "@/components/ui/input";
@@ -24,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { addCustodyDeliveryAction } from "@/lib/actions/custodies";
 import { addStockMovementAction } from "@/lib/actions/warehouse";
-import { centsToInput, formatMoney } from "@/lib/money";
+import { formatMoney } from "@/lib/money";
 
 type Product = {
   id: string;
@@ -71,13 +70,7 @@ export function GoodsCatalog({
         description={
           hasQuery
             ? "جرّب اسم تاني، أو امسح البحث تشوف كل البضائع."
-            : "أضف أول منتج في المخزن، وهيظهر هنا بسعره وتقدر تورّده لأي عهدة أو تدخله للمخزن."
-        }
-        action={
-          <Link href="/warehouse/new" className={buttonStyles({ size: "sm" })}>
-            <PlusIcon className="size-4" />
-            منتج جديد
-          </Link>
+            : "أضف أول بضاعة من الفورم فوق (اسم وسعر)، وهيظهر هنا بسعرها وتقدر تورّدها لأي عهدة أو تدخلها للمخزن."
         }
       />
     );
@@ -281,8 +274,12 @@ function ActionPanel({
       );
     }
 
-    // Deliveries are priced at the sale price by default; the field stays editable.
-    const defaultPrice = product.salePriceCents ?? product.costPriceCents;
+    // Deliveries are priced from the catalog: sale price, else cost price.
+    const defaultPrice = product.salePriceCents || product.costPriceCents;
+    const priceLabel =
+      defaultPrice > 0
+        ? formatMoney(defaultPrice)
+        : "بدون سعر — حدّثه من صفحة البضائع";
 
     return (
       <ActionForm
@@ -291,8 +288,14 @@ function ActionPanel({
         pendingLabel="جارٍ الإضافة..."
         footer={cancel}
       >
-        <input type="hidden" name="name" value={product.name} />
-        <input type="hidden" name="unit" value={product.unit ?? ""} />
+        <input type="hidden" name="productId" value={product.id} />
+        <input type="hidden" name="redirectTo" value="/goods" />
+        <p className="mb-4 rounded-xl bg-surface-muted px-3.5 py-3 text-sm leading-6 text-ink">
+          <span className="font-extrabold">{product.name}</span>
+          {product.unit ? ` · ${product.unit}` : ""} ·{" "}
+          <span className="font-bold text-brand-dark">{priceLabel}</span>{" "}
+          <span className="text-muted">— السعر تلقائي من البضاعة.</span>
+        </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="العهدة" htmlFor={`${idPrefix}-custody`}>
             <Select
@@ -316,20 +319,6 @@ function ActionPanel({
               inputMode="numeric"
               required
               placeholder="1"
-            />
-          </Field>
-          <Field
-            label="سعر الوحدة (جنيه)"
-            htmlFor={`${idPrefix}-price`}
-            hint="افتراضيًا سعر البيع — عدّل لو مختلف."
-          >
-            <Input
-              id={`${idPrefix}-price`}
-              name="unitPrice"
-              inputMode="decimal"
-              required
-              defaultValue={centsToInput(defaultPrice)}
-              placeholder="0"
             />
           </Field>
           <Field label="التاريخ" htmlFor={`${idPrefix}-date`}>
@@ -363,7 +352,16 @@ function ActionPanel({
     >
       <input type="hidden" name="productId" value={product.id} />
       <input type="hidden" name="type" value="IN" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <input type="hidden" name="redirectTo" value="/goods" />
+      <p className="mb-4 rounded-xl bg-surface-muted px-3.5 py-3 text-sm leading-6 text-ink">
+        <span className="font-extrabold">{product.name}</span>
+        {product.unit ? ` · ${product.unit}` : ""} ·{" "}
+        <span className="font-bold text-brand-dark">
+          {formatMoney(product.costPriceCents)}
+        </span>{" "}
+        <span className="text-muted">— بيتسجل بسعر التكلفة.</span>
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="الكمية" htmlFor={`${idPrefix}-qty`}>
           <Input
             id={`${idPrefix}-qty`}
@@ -371,20 +369,6 @@ function ActionPanel({
             inputMode="numeric"
             required
             placeholder="1"
-          />
-        </Field>
-        <Field
-          label="سعر الوحدة (جنيه)"
-          htmlFor={`${idPrefix}-price`}
-          hint="افتراضيًا سعر التكلفة."
-        >
-          <Input
-            id={`${idPrefix}-price`}
-            name="unitPrice"
-            inputMode="decimal"
-            required
-            defaultValue={centsToInput(product.costPriceCents)}
-            placeholder="0"
           />
         </Field>
         <Field label="التاريخ" htmlFor={`${idPrefix}-date`}>

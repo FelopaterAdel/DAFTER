@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { ActionForm } from "@/components/forms/action-form";
 import { GoodsCatalog } from "@/components/goods/goods-catalog";
 import { PageHeader } from "@/components/layout/page-header";
 import { buttonStyles } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusIcon } from "@/components/ui/icons";
-import { Input } from "@/components/ui/input";
+import { Field, Input } from "@/components/ui/input";
+import { createQuickProductAction } from "@/lib/actions/warehouse";
 import { requireAuth } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
 import { todayISO } from "@/lib/dates";
@@ -127,6 +130,47 @@ export default async function GoodsPage({
           بحث
         </button>
       </form>
+
+      <Card className="mb-5">
+        <CardHeader>
+          <CardTitle>بضاعة جديدة</CardTitle>
+          <span className="rounded-full bg-brand-soft px-2.5 py-1 text-[11px] font-bold text-brand-dark">
+            إضافة سريعة
+          </span>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <ActionForm
+            action={createQuickProductAction}
+            submitLabel="إضافة البضاعة"
+            pendingLabel="جارٍ الإضافة..."
+          >
+            <input type="hidden" name="redirectTo" value="/goods" />
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_200px]">
+              <Field label="اسم البضاعة" htmlFor="quick-name">
+                <Input
+                  id="quick-name"
+                  name="name"
+                  required
+                  placeholder="مثال: زيت، أرز، سكر"
+                />
+              </Field>
+              <Field
+                label="السعر (جنيه)"
+                htmlFor="quick-price"
+                hint="بيتسجل كسعر تكلفة وسعر بيع مع بعض."
+              >
+                <Input
+                  id="quick-price"
+                  name="price"
+                  inputMode="decimal"
+                  required
+                  placeholder="0"
+                />
+              </Field>
+            </div>
+          </ActionForm>
+        </CardContent>
+      </Card>
 
       <GoodsCatalog
         products={products}

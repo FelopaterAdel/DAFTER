@@ -72,7 +72,7 @@ One simple system with:
 
 - System setup and PIN.
 - Custody management: create, edit, deactivate, search.
-- Custody stock: add items with quantities and prices.
+- Custody stock: deliver products picked from the goods catalog, with quantities (prices come from the product).
 - Custody returns: deduct from custody stock and balance, and add the goods to my warehouse.
 - Custody customers: create, balances, payments (paid to the seller).
 - Direct customers: name + country + amount + note + payments (paid to you).
@@ -344,7 +344,7 @@ Net custody stock per item =
 
 **Tabs:**
 
-1. **Stock:** items table (name, delivered, returned, net quantity, unit price, value, note) + totals + “Add stock” / “Record return”.
+1. **Stock:** items table (name, delivered, returned, net quantity, unit price, value, note) + totals + “Add stock” / “Record return”. The delivery form only asks for the **product (from the goods catalog), quantity, date and note** — the name, unit and unit price are taken from the product (sale price, else cost price), and the row keeps the product id. When there is no product yet it links to `/goods`.
 2. **Customers:** the custody's customers and their balances + “New customer” + link to each customer.
 3. **Statement:** all movements newest first (deliveries / returns / stock sales / the custody's customers / manual charges / collections) with a running balance and date filter.
 4. **Notes:** custody note and general notes.
@@ -402,29 +402,31 @@ Net custody stock per item =
 
 ### 7.9 My warehouse `/warehouse`
 
-**Products tab:**
-
-- Search.
+- Search and status filter.
 - Table: product, unit, current quantity, cost, value, status (in stock / low / out of stock).
-- “New product” and “Stock in/out”.
-
-**Movements tab:**
-
-- Filters: product, type, period.
-- Table: date, product, type, quantity, price, note.
+- “New product” (full form) opens `/warehouse/new`.
+- **Quick stock-in card** above the list: product picker (active products),
+  quantity, date, note — records an `IN` movement at the product’s cost price
+  and stays on `/warehouse`.
+- Product page `/warehouse/[id]`: movement form (in / out / adjust), current
+  quantity, threshold and the movement log.
 
 ### 7.10 Goods catalog `/goods`
 
+- **Quick “new product” card**: just a **name and one price**; the price is
+  stored as both the cost and the sale price, and the page reloads `/goods` so
+  several products can be added one after another.
 - Every active product name with its unit, cost price and sale price, plus the
   quantity currently in the warehouse.
 - Search by name.
 - Summary: product count, total quantity, value at cost.
 - Per product, two quick actions that open an inline form:
-  - **Deliver to a custody** — custody picker, quantity, unit price (defaults to
-    the sale price), date, note. Uses the same custody delivery flow, so the
-    custody stock and balance update immediately.
-  - **Stock into the warehouse** — quantity, unit price (defaults to the cost
-    price), date, note. Records an `IN` movement for that product.
+  - **Deliver to a custody** — custody picker, quantity, date, note. The unit
+    price is automatic (sale price, else cost price), taken from the product;
+    uses the same custody delivery flow, so the custody stock and balance
+    update immediately. Returns to `/goods`.
+  - **Stock into the warehouse** — quantity, date, note. Records an `IN`
+    movement at the cost price and returns to `/goods`.
 - Empty state when there are no products (or no search results) and a hint when
   there is no active custody yet.
 
@@ -443,7 +445,7 @@ Net custody stock per item =
 ## 8. A day in the life
 
 1. **Morning:** open the dashboard and review yesterday's collections and custody balances.
-2. **Deliver goods:** open the custody → “Add stock” → record items, quantities, and prices → the custody balance increases.
+2. **Deliver goods:** open the custody → “Add stock” → pick the product and quantity (the price comes from the catalog) → the custody balance increases.
 3. **Customer buys:** open the customer → “Add charge” → record the amount → the customer balance increases.
 4. **Customer pays the seller:** record a “customer payment” → the customer balance decreases; the custody balance stays the same.
 5. **Goods returned from a custody:** open the custody → “Record return” → stock and balance decrease, and the returned quantity is added to the linked product in my warehouse.

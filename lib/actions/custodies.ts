@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireAuth } from "@/lib/auth/dal";
 import { db } from "@/lib/db";
-import { type FormState } from "@/lib/forms";
+import { type FormState, safeRedirectPath } from "@/lib/forms";
 import { computeStockGroups, getCustodySales } from "@/lib/queries/balances";
 import {
   messages,
@@ -118,28 +118,42 @@ export async function addCustodyDeliveryAction(
   await requireAuth();
 
   const custodyId = readString(formData, "custodyId");
-  const name = readString(formData, "name");
-  const unit = readOptionalString(formData, "unit");
+  const productId = readString(formData, "productId");
   const quantity = readPositiveInt(formData, "quantity");
-  const unitPriceCents = readMoney(formData, "unitPrice");
   const occurredOn = readDate(formData, "occurredOn");
   const note = readOptionalString(formData, "note");
+  const redirectTo = readString(formData, "redirectTo");
 
   if (!custodyId) return { error: "العهدة مش موجودة." };
-  if (!name) return { error: "اكتب اسم الصنف." };
+  if (!productId) return { error: "اختار البضاعة من القائمة." };
   if (!quantity) return { error: messages.invalidQuantity };
-  if (unitPriceCents === null) return { error: "اكتب سعر الوحدة." };
   if (!occurredOn) return { error: messages.invalidDate };
 
-  const custody = await db.custody.findUnique({ where: { id: custodyId } });
+  const [custody, product] = await Promise.all([
+    db.custody.findUnique({ where: { id: custodyId } }),
+    db.product.findUnique({ where: { id: productId } }),
+  ]);
+
   if (!custody) return { error: "العهدة مش موجودة." };
+  if (!product || !product.isActive) {
+    return { error: "البضاعة مش موجودة أو إنها موقوفة." };
+  }
+
+  // The delivery is priced from the catalog: sale price, else cost price.
+  const unitPriceCents = product.salePriceCents || product.costPriceCents;
+  if (unitPriceCents <= 0) {
+    return {
+      error: `البضاعة «${product.name}» ملهاش سعر — حدّث سعرها من صفحة البضائع الأول.`,
+    };
+  }
 
   await db.custodyItem.create({
     data: {
       custodyId,
       type: "DELIVERY",
-      name,
-      unit,
+      productId,
+      name: product.name,
+      unit: product.unit,
       quantity,
       unitPriceCents,
       note,
@@ -148,7 +162,9 @@ export async function addCustodyDeliveryAction(
   });
 
   custodyPaths(custodyId);
-  redirect(`/custodies/${custodyId}?tab=stock`);
+  redirect(
+    safeRedirectPath(redirectTo, `/custodies/${custodyId}?tab=stock`),
+  );
 }
 
 export async function addCustodyReturnAction(
